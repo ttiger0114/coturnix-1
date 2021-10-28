@@ -24,7 +24,7 @@ def train_model(model, epochs, optimizer, start_time, device, early_stopper, log
     for epoch in tqdm(range(epochs)):
         loss_sum = 0
         for x in train_dataloader:
-            x = x.to('cuda:0')
+            x = x.to(device)
             pred_x = model(x.view(x.shape[0], -1))
             loss = loss_fn(pred_x, x.view(x.shape[0], -1))
             loss.backward()
@@ -39,7 +39,7 @@ def train_model(model, epochs, optimizer, start_time, device, early_stopper, log
 
         for x in valid_dataloader:
             with torch.no_grad():
-                x = x.to('cuda:0')
+                x = x.to(device)
                 pred_x = model(x.view(x.shape[0], -1))
                 loss = loss_fn(pred_x, x.view(x.shape[0], -1))
 
