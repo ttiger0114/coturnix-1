@@ -5,7 +5,7 @@ Data Preprocess code is for colab pro environment (25+ GB RAM)
 ### Directory Structure
 
 ```bash
-└── data_preprocess
+└── data_preprocess (* here)
     ├── cleaved_data
     ├── padded_data
     ├── data
