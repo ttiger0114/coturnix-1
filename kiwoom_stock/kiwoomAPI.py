@@ -24,6 +24,7 @@ class Kiwoom(QAxWidget):
         self.OnEventConnect.connect(self._event_connect)
         self.OnReceiveTrData.connect(self._receive_tr_data)
 
+
         ## 조건검색식 관련 추가
         self.OnReceiveConditionVer.connect(self.receiveConditionVer)
         self.OnReceiveTrCondition.connect(self.receiveTrCondition)
@@ -103,6 +104,8 @@ class Kiwoom(QAxWidget):
 
         if rqname == "opt10081_req":
             self._opt10081(rqname, trcode)
+        elif rqname == "계좌평가현황요청":
+            self._OPW00004(rqname, trcode)
 
         try:
             self.tr_event_loop.exit()
@@ -120,17 +123,11 @@ class Kiwoom(QAxWidget):
             close = self._comm_get_data(trcode, "", rqname, i, "현재가")
             volume = self._comm_get_data(trcode, "", rqname, i, "거래량")
 
-    def _opt10001(self, rqname, trcode):
-        data_cnt = self._get_repeat_cnt(trcode, rqname)
 
-        for i in range(data_cnt):
-            date = self._comm_get_data(trcode, "", rqname, i, "일자")
-            open = self._comm_get_data(trcode, "", rqname, i, "시가")
-            high = self._comm_get_data(trcode, "", rqname, i, "고가")
-            low = self._comm_get_data(trcode, "", rqname, i, "저가")
-            close = self._comm_get_data(trcode, "", rqname, i, "현재가")
-            volume = self._comm_get_data(trcode, "", rqname, i, "거래량")
-            print(date,open,high,low,close,volume)
+    def _OPW00004(self, rqname, trcode):
+        print(rqname, trcode,"dfdf")
+        a = self._comm_get_data(trcode, "", rqname, 0, "예수금")
+        print(a)
 
 
     ###############################################################
@@ -172,7 +169,7 @@ class Kiwoom(QAxWidget):
         :param inquiry: int - 조회구분(0: 남은데이터 없음, 2: 남은데이터 있음)
         """
 
-        print("[receiveTrCondition]")
+        print("[receiveTrCondition], ")
         try:
             if codes == "":
                 return
@@ -307,10 +304,11 @@ class Kiwoom(QAxWidget):
             data = [a7,a8,a9,a0,a5]
             for i in range(len(data)):
                 data[i] = abs(int(data[i]))
-            print("코드: ",code, "real_type: ",real_type,"시가: ",data[0],"고가: ", data[1], "저가: ", data[2],
-            "종가: ",data[3],"거래량: ",data[4])  
+            # print("코드: ",code, "real_type: ",real_type,"시가: ",data[0],"고가: ", data[1], "저가: ", data[2],
+            # "종가: ",data[3],"거래량: ",data[4])  
 
             ## Update data dictionary
+            print("===================================")
             kiwoom.UpdateDataDict(code,data)
 
     
@@ -330,14 +328,14 @@ class Kiwoom(QAxWidget):
     def UpdateDataDict(self, code, data):
         data_len = len(self.DataDict[code])
         self.DataDict[code][data_len-1] = data
-        print(self.DataDict[code])
+        print(code, self.DataDict[code])
 
 
-    def CheckSendCondition(self, case, code, data, data_len):
-        if case == 0:
-            Threshold = self.DataDict[code][0][0] # 장시작 시가
-            CurrentPrice = data[3] # 현재가
-            if CurrentPrice > 
+    # def CheckSendCondition(self, case, code, data, data_len):
+    #     if case == 0:
+    #         Threshold = self.DataDict[code][0][0] # 장시작 시가
+    #         CurrentPrice = data[3] # 현재가
+    #         if CurrentPrice > 
 
 
 
@@ -348,10 +346,17 @@ class Kiwoom(QAxWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    app.exec_()
     kiwoom = Kiwoom()
     kiwoom.comm_connect()
     ## Clinet Socket Open
     client = lb.ClientSocket()
+
+    ## 계좌 정보 조회
+    kiwoom.set_input_value("계좌번호","8010523011")
+    kiwoom.set_input_value("비밀번호", "")
+    kiwoom.set_input_value("상장폐지조회구분", 0)
+    kiwoom.comm_rq_data("계좌평가현황요청", "OPW00004", 0, "6001")
 
     ## 조건 검색식 로드
     kiwoom.getConditionLoad()
@@ -367,7 +372,7 @@ if __name__ == "__main__":
 
     ######### 조건문 입력 
     condition_num = int(input("조건문 번호: ")) 
-    kiwoom.sendCondition("0156",kiwoom.condition[condition_num],condition_num,1)
+    kiwoom.sendCondition("0156",kiwoom.condition[condition_num],condition_num,0)
 
     #### 조건문 결과 출력
     time.sleep(1)
@@ -383,22 +388,14 @@ if __name__ == "__main__":
     kiwoom.InitializeDataDict(codeList)
 
     
-    for i in range(10):
-        time.sleep(1)
+    for i,code in enumerate(codeList):            
+        kiwoom.SetRealReg("0150",code,"20;10","1")    
+
+    for i in range(3):
+        time.sleep(10)
         kiwoom.AutoUpdateDataDict()
-        print("--waiting\n")
-        for i,code in enumerate(codeList):
-
-            '''
-            kiwoom.set_input_value("종목코드",code)
-            kiwoom.set_input_value("틱범위", 1)
-            kiwoom.set_input_value("수정주가구분", 0)
-            kiwoom.comm_rq_data("opt10001_req", "opt10001", 0, "1001")
-            dd = kiwoom.latest_tr_data
-            print(dd)
-            '''
-
-            
-            kiwoom.SetRealReg("0150",code,"10","1")    
+        # for i,code in enumerate(codeList):            
+        #     kiwoom.SetRealReg("0150",code,"10","1")   
+        print("--waiting\n") 
 
     print(kiwoom.DataDict)

@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from kiwoom_stock import LoopBackSocket as lb
 
-from model import model as md
-from model.model import Simple1DCNN
+# from model import model as md
+# from model.model import Simple1DCNN
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
