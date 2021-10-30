@@ -5,7 +5,7 @@ import numpy as np
 
 DATA_LENGTH = 6
 LABEL_DISTANCE = 3
-DECISION_THRESHOLD = 0.0005
+DECISION_THRESHOLD = 0.0075
 SAMPLING_FREQUENCY = 2
 
 with open('padded_data/data_length.pickle', 'rb') as f:

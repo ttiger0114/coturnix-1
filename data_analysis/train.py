@@ -86,6 +86,9 @@ if __name__ == '__main__':
     model = model.to(DEVICE)
 
     start_time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    if not os.path.exists(os.path.join("result")):
+        os.mkdir(os.path.join('result'))
+
     os.mkdir(os.path.join('result', start_time))
 
     system_logger = get_logger(name='autoencoder', file_path=os.path.join('result', start_time, 'train_log.log'))
