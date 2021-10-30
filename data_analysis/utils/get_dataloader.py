@@ -73,6 +73,12 @@ def data_aggregation():
     # x_test = np.concatenate((x_test_1, x_test_2), axis=0)
     # y_test = np.concatenate((y_test_1, y_test_2), axis=0)
 
+    np.save('../data_preprocess/train_test_data/x_train.npy', x_train)
+    np.save('../data_preprocess/train_test_data/y_train.npy', y_train)
+    
+    np.save('../data_preprocess/train_test_data/x_valid.npy', x_valid)
+    np.save('../data_preprocess/train_test_data/y_valid.npy', y_valid)
+
     return x_train, y_train, x_valid, y_valid
 
 def get_dataloader():
