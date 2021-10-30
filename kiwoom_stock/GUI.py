@@ -33,6 +33,13 @@ class MyWindow(QMainWindow):
         column_headers = ['종목코드', '종목명', '시가','고가','저가','현재가','거래량']
         self.tableWidget.setHorizontalHeaderLabels(column_headers)
 
+        style = "::section {""background-color: lightgray; }"
+        self.tableWidget.horizontalHeader().setStyleSheet(style)
+        self.tableWidget.setEditTriggers(QAbstractItemView.NoEditTriggers)
+
+
+        self.tableWidget.doubleClicked.connect(self.table_double_clicked)
+
         sys_text_height = 200
         sys_text_width = 300
         self.sys_text_edit = QPlainTextEdit(self)
@@ -48,7 +55,6 @@ class MyWindow(QMainWindow):
         self.plain_text_edit.move(table_width+20, sys_text_height+20)
         self.plain_text_edit.resize(plain_text_width, plain_text_height)
 
-        # self.account_text = QPlainTextEdit(self)
         self.account_text = QLineEdit(self)
         self.account_text.setReadOnly(True)
         self.account_text.move(10, 10)
@@ -77,6 +83,13 @@ class MyWindow(QMainWindow):
         self.login_event_loop = QEventLoop()
         self.CommConnect()          # 로그인이 될 때까지 대기
         self.run()
+
+    def table_double_clicked(self):
+        row = self.tableWidget.currentIndex().row()
+        column = self.tableWidget.currentIndex().column()
+        print(self.tableWidget.item(row,column).text())
+
+
 
     def CommConnect(self):
         self.ocx.dynamicCall("CommConnect()")
@@ -111,6 +124,8 @@ class MyWindow(QMainWindow):
             if i == 30:
                 break
             self.request_opt10001(code)
+
+        
         self.request_opw00001()
         self.request_opw00004()
 
@@ -159,14 +174,35 @@ class MyWindow(QMainWindow):
             cur_price = self.GetCommData(trcode, rqname, 0, "현재가")
             amount = self.GetCommData(trcode, rqname, 0, "거래량")
 
-            self.tableWidget.setItem(self.codeNum,0,QTableWidgetItem(f"{code}"))
-            self.tableWidget.setItem(self.codeNum,1,QTableWidgetItem(f"{name}"))
-            self.tableWidget.setItem(self.codeNum,2,QTableWidgetItem(f"{start_price}"))
-            self.tableWidget.setItem(self.codeNum,3,QTableWidgetItem(f"{high_price}"))
-            self.tableWidget.setItem(self.codeNum,4,QTableWidgetItem(f"{low_price}"))
-            self.tableWidget.setItem(self.codeNum,5,QTableWidgetItem(f"{cur_price}"))
-            self.tableWidget.setItem(self.codeNum,6,QTableWidgetItem(f"{amount}"))
-            self.codeNum = self.codeNum + 1
+            if code != '':
+                self.tableWidget.setItem(self.codeNum,0,QTableWidgetItem(f"{code}"))
+                self.tableWidget.setItem(self.codeNum,1,QTableWidgetItem(f"{name}"))
+                self.tableWidget.setItem(self.codeNum,2,QTableWidgetItem(f"{abs(int(start_price))}"))
+                self.tableWidget.setItem(self.codeNum,3,QTableWidgetItem(f"{abs(int(high_price))}"))
+                self.tableWidget.setItem(self.codeNum,4,QTableWidgetItem(f"{abs(int(low_price))}"))
+                self.tableWidget.setItem(self.codeNum,5,QTableWidgetItem(f"{abs(int(cur_price))}"))
+                self.tableWidget.setItem(self.codeNum,6,QTableWidgetItem(f"{amount}"))
+
+                if int(start_price) > 0:
+                    self.tableWidget.item(self.codeNum,2).setForeground(QBrush(Qt.red))
+                elif int(start_price) < 0:
+                    self.tableWidget.item(self.codeNum,2).setForeground(QBrush(Qt.blue))
+                if int(high_price) > 0:
+                    self.tableWidget.item(self.codeNum,3).setForeground(QBrush(Qt.red))
+                elif int(high_price) < 0:
+                    self.tableWidget.item(self.codeNum,3).setForeground(QBrush(Qt.blue))
+                if int(low_price) > 0:
+                    self.tableWidget.item(self.codeNum,4).setForeground(QBrush(Qt.red))
+                elif int(low_price) < 0:
+                    self.tableWidget.item(self.codeNum,4).setForeground(QBrush(Qt.blue))
+                if int(cur_price) > 0:
+                    self.tableWidget.item(self.codeNum,5).setForeground(QBrush(Qt.red))
+                elif int(cur_price) < 0:
+                    self.tableWidget.item(self.codeNum,5).setForeground(QBrush(Qt.blue))
+                
+                self.tableWidget.item(self.codeNum,5).setBackground(QColor(235,255,255))
+
+                self.codeNum = self.codeNum + 1
 
         elif rqname == "예수금조회":
             주문가능금액 = self.GetCommData(trcode, rqname, 0, "주문가능금액")
@@ -449,8 +485,14 @@ class MyWindow(QMainWindow):
         data = self.ocx.dynamicCall("GetChejanData(int)", fid)
         return data
 
+    # def ChangeColColor(self, row_num, num):
+    #     for i in range(1,num):
+    #         print(i)
+    #         self.tableWidget.item(row_num,i).setBackground(QColor(30,30,30))
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MyWindow()
     window.show()
+
     app.exec_()
