@@ -5,6 +5,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import datetime
 import time
+import threading
 
 
 class MyWindow(QMainWindow):
@@ -80,6 +81,8 @@ class MyWindow(QMainWindow):
         self.codeList = []
         self.codeNum = 0
 
+        self.DataDict = {}
+
         self.login_event_loop = QEventLoop()
         self.CommConnect()          # 로그인이 될 때까지 대기
         self.run()
@@ -121,13 +124,20 @@ class MyWindow(QMainWindow):
         for i,code in enumerate(self.codeList):
             print(code)
             time.sleep(0.25)
-            if i == 30:
+            if i == 10:
                 break
             self.request_opt10001(code)
 
         
         self.request_opw00001()
         self.request_opw00004()
+
+        ## 주식 사전 기록
+        self.InitializeDataDict(self.codeList)
+        AutoUpdate = threading.Thread(target = self.AutoUpdateDataDict)
+        AutoUpdate.start()
+
+
 
         # 주식체결 (실시간)
         self.subscribe_market_time('1')
@@ -485,10 +495,27 @@ class MyWindow(QMainWindow):
         data = self.ocx.dynamicCall("GetChejanData(int)", fid)
         return data
 
-    # def ChangeColColor(self, row_num, num):
-    #     for i in range(1,num):
-    #         print(i)
-    #         self.tableWidget.item(row_num,i).setBackground(QColor(30,30,30))
+    ############ Stock data dictionary #######
+    def InitializeDataDict(self, codeList):
+        for code in codeList:
+            ############ to do
+            temp = [0,0,0,0,0]
+            ##################
+            self.DataDict[code] = [temp]
+
+    def AutoUpdateDataDict(self):
+        while(True):
+            time.sleep(60 - datetime.datetime.now().second)
+            # time.sleep(10)
+            for key, _ in self.DataDict.items():
+                print("autoupdate",datetime.datetime.now(), key)
+                data_len = len(self.DataDict[key])
+                self.DataDict[key] = self.DataDict[key] + [self.DataDict[key][data_len-1]]
+
+    def UpdateDataDict(self, code, data):
+        data_len = len(self.DataDict[code])
+        self.DataDict[code][data_len-1] = data
+        print(code, self.DataDict[code])
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
