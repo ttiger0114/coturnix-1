@@ -432,32 +432,50 @@ class MyWindow(QMainWindow):
                 print("메인 윈도우 종료")
 
         elif real_type == "주식체결": 
-            # 현재가 
-            현재가 = self.GetCommRealData(code, 10)
-            현재가 = abs(int(현재가))          # +100, -100
-            체결시간 = self.GetCommRealData(code, 20)
+            a0 = self.GetCommRealData(code,10) #현재가
+            #a1 = self.GetCommRealData(code,11) #전일대비
+            #a2 = self.GetCommRealData(code,12) #등락율
+            #a3 = self.GetCommRealData(code,27) #매도호가
+            #a4 = self.GetCommRealData(code,28) #매수호가
+            a5 = self.GetCommRealData(code,13) #누적거래량
+            #a6 = self.GetCommRealData(code,14) #누적거래대금
+            a7 = self.GetCommRealData(code,16) #시가
+            a8 = self.GetCommRealData(code,17) #고가
+            a9 = self.GetCommRealData(code,18) #저가
 
-            # 목표가 계산
-            # TR 요청을 통한 전일 range가 계산되었고 아직 당일 목표가가 계산되지 않았다면 
-            if self.range is not None and self.target is None:
-                시가 = self.GetCommRealData(code, 16)
-                시가 = abs(int(시가))          # +100, -100
-                self.target = int(시가 + (self.range * 0.5))      
-                self.plain_text_edit.appendPlainText(f"목표가 계산됨: {self.target}")
+            ## 시가, 고가, 저가, 현재가, 누적거래량
+            stock_realtime_data = [a7, a8, a9, a0, a5]
+            for i in range(len(stock_realtime_data)):
+                stock_realtime_data[i] = abs(int(stock_realtime_data[i]))
 
-            # 매수시도
-            # 당일 매수하지 않았고
-            # TR 요청과 Real을 통한 목표가가 설정되었고 
-            # TR 요청을 통해 잔고조회가 되었고 
-            # 현재가가 목표가가 이상이면
-            if self.hold is None and self.target is not None and self.amount is not None and 현재가 > self.target:
-                self.hold = True 
-                quantity = int(self.amount / 현재가)
-                self.SendOrder("매수", "8000", self.account, 1, "229200", quantity, 0, "03", "")
-                self.plain_text_edit.appendPlainText(f"시장가 매수 진행 수량: {quantity}")
+            self.UpdateDataDict(code,stock_realtime_data)
 
-            # 로깅
-            self.plain_text_edit.appendPlainText(f"시간: {체결시간} 목표가: {self.target} 현재가: {현재가} 보유여부: {self.hold}")
+            # # 현재가 
+            # 현재가 = self.GetCommRealData(code, 10)
+            # 현재가 = abs(int(현재가))          # +100, -100
+            # 체결시간 = self.GetCommRealData(code, 20)
+
+            # # 목표가 계산
+            # # TR 요청을 통한 전일 range가 계산되었고 아직 당일 목표가가 계산되지 않았다면 
+            # if self.range is not None and self.target is None:
+            #     시가 = self.GetCommRealData(code, 16)
+            #     시가 = abs(int(시가))          # +100, -100
+            #     self.target = int(시가 + (self.range * 0.5))      
+            #     self.plain_text_edit.appendPlainText(f"목표가 계산됨: {self.target}")
+
+            # # 매수시도
+            # # 당일 매수하지 않았고
+            # # TR 요청과 Real을 통한 목표가가 설정되었고 
+            # # TR 요청을 통해 잔고조회가 되었고 
+            # # 현재가가 목표가가 이상이면
+            # if self.hold is None and self.target is not None and self.amount is not None and 현재가 > self.target:
+            #     self.hold = True 
+            #     quantity = int(self.amount / 현재가)
+            #     self.SendOrder("매수", "8000", self.account, 1, "229200", quantity, 0, "03", "")
+            #     self.plain_text_edit.appendPlainText(f"시장가 매수 진행 수량: {quantity}")
+
+            # # 로깅
+            # self.plain_text_edit.appendPlainText(f"시간: {체결시간} 목표가: {self.target} 현재가: {현재가} 보유여부: {self.hold}")
 
     def _handler_chejan_data(self, gubun, item_cnt, fid_list):
         if 'gubun' == '1':      # 잔고통보
@@ -498,9 +516,7 @@ class MyWindow(QMainWindow):
     ############ Stock data dictionary #######
     def InitializeDataDict(self, codeList):
         for code in codeList:
-            ############ to do
             temp = [0,0,0,0,0]
-            ##################
             self.DataDict[code] = [temp]
 
     def AutoUpdateDataDict(self):
@@ -515,7 +531,8 @@ class MyWindow(QMainWindow):
     def UpdateDataDict(self, code, data):
         data_len = len(self.DataDict[code])
         self.DataDict[code][data_len-1] = data
-        print(code, self.DataDict[code])
+        print(datetime.datetime.now()," Update ",code, data)
+    #############################################
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
