@@ -445,10 +445,38 @@ class MyWindow(QMainWindow):
 
             ## 시가, 고가, 저가, 현재가, 누적거래량
             stock_realtime_data = [a7, a8, a9, a0, a5]
-            for i in range(len(stock_realtime_data)):
-                stock_realtime_data[i] = abs(int(stock_realtime_data[i]))
+            abs_stock_realtime_data = abs(int(stock_realtime_data[i]))
 
-            self.UpdateDataDict(code,stock_realtime_data)
+            self.UpdateDataDict(code,abs_stock_realtime_data)
+
+            row_num = self.codeList.index(code)
+
+            if row_num >= 10:
+                return
+
+            self.tableWidget.setItem(row_num,2,QTableWidgetItem(f"{abs(int(a7))}"))
+            self.tableWidget.setItem(row_num,3,QTableWidgetItem(f"{abs(int(a8))}"))
+            self.tableWidget.setItem(row_num,4,QTableWidgetItem(f"{abs(int(a9))}"))
+            self.tableWidget.setItem(row_num,5,QTableWidgetItem(f"{abs(int(a0))}"))
+            self.tableWidget.setItem(row_num,6,QTableWidgetItem(f"{abs(int(a5))}"))
+
+
+            if int(a7) > 0:
+                self.tableWidget.item(row_num,2).setForeground(QBrush(Qt.red))
+            elif int(a7) < 0:
+                self.tableWidget.item(row_num,2).setForeground(QBrush(Qt.blue))
+            if int(a8) > 0:
+                self.tableWidget.item(row_num,3).setForeground(QBrush(Qt.red))
+            elif int(a8) < 0:
+                self.tableWidget.item(row_num,3).setForeground(QBrush(Qt.blue))
+            if int(a9) > 0:
+                self.tableWidget.item(row_num,4).setForeground(QBrush(Qt.red))
+            elif int(a9) < 0:
+                self.tableWidget.item(row_num,4).setForeground(QBrush(Qt.blue))
+            if int(a0) > 0:
+                self.tableWidget.item(row_num,5).setForeground(QBrush(Qt.red))
+            elif int(a0) < 0:
+                self.tableWidget.item(row_num,5).setForeground(QBrush(Qt.blue))
 
             # # 현재가 
             # 현재가 = self.GetCommRealData(code, 10)
