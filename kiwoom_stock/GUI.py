@@ -83,6 +83,8 @@ class MyWindow(QMainWindow):
 
         self.DataDict = {}
 
+        self.view_num = 15
+
         self.login_event_loop = QEventLoop()
         self.CommConnect()          # 로그인이 될 때까지 대기
         self.run()
@@ -124,9 +126,10 @@ class MyWindow(QMainWindow):
         for i,code in enumerate(self.codeList):
             print(code)
             time.sleep(0.25)
-            if i == 10:
+            if i == self.view_num:
                 break
             self.request_opt10001(code)
+            self.subscribe_stock_conclusion('2', code)
 
         
         self.request_opw00001()
@@ -141,7 +144,7 @@ class MyWindow(QMainWindow):
 
         # 주식체결 (실시간)
         self.subscribe_market_time('1')
-        self.subscribe_stock_conclusion('2')
+        # self.subscribe_stock_conclusion('2')
 
     def GetLoginInfo(self, tag):
         data = self.ocx.dynamicCall("GetLoginInfo(QString)", tag)
@@ -339,9 +342,9 @@ class MyWindow(QMainWindow):
         :param conditionIndex: string - 조건식 인덱스(여기서만 인덱스가 string 타입으로 전달됨)
         """
 
-        print("종목코드: {}, 종목명: {}".format(code, self.get_master_code_name(code)))
+        # print("종목코드: {}, 종목명: {}".format(code, self.get_master_code_name(code)))
         
-        print("이벤트: ", "종목편입" if event == "I" else "종목이탈")
+        # print("이벤트: ", "종목편입" if event == "I" else "종목이탈")
         
         # bot.sendMessage(chat_id=chat_id, text="종목코드: {} , {}".format(code, event))
 
@@ -445,13 +448,14 @@ class MyWindow(QMainWindow):
 
             ## 시가, 고가, 저가, 현재가, 누적거래량
             stock_realtime_data = [a7, a8, a9, a0, a5]
-            abs_stock_realtime_data = abs(int(stock_realtime_data[i]))
-
+            for i in range(len(stock_realtime_data)):
+                abs_stock_realtime_data = abs(int(stock_realtime_data[i]))
+            print("abs_stock_realtime_data",abs_stock_realtime_data)
             self.UpdateDataDict(code,abs_stock_realtime_data)
 
             row_num = self.codeList.index(code)
 
-            if row_num >= 10:
+            if row_num >= self.view_num:
                 return
 
             self.tableWidget.setItem(row_num,2,QTableWidgetItem(f"{abs(int(a7))}"))
@@ -477,6 +481,8 @@ class MyWindow(QMainWindow):
                 self.tableWidget.item(row_num,5).setForeground(QBrush(Qt.red))
             elif int(a0) < 0:
                 self.tableWidget.item(row_num,5).setForeground(QBrush(Qt.blue))
+
+            self.tableWidget.item(row_num,5).setBackground(QColor(235,255,255))
 
             # # 현재가 
             # 현재가 = self.GetCommRealData(code, 10)
@@ -512,9 +518,10 @@ class MyWindow(QMainWindow):
             self.amount = int(예수금 * 0.2)
             self.plain_text_edit.appendPlainText(f"투자금액 업데이트 됨: {self.amount}")
 
-    def subscribe_stock_conclusion(self, screen_no):
-        self.SetRealReg(screen_no, "229200", "20", 0)
-        self.plain_text_edit.appendPlainText("주식체결 구독신청")
+    def subscribe_stock_conclusion(self, screen_no, code):
+        # self.SetRealReg(screen_no, "229200", "20", 0)
+        self.SetRealReg(screen_no, str(code), "20", 1)
+        self.plain_text_edit.appendPlainText(f"{code} 주식체결 구독신청")
 
     def subscribe_market_time(self, screen_no):
         self.SetRealReg(screen_no, "", "215", 0)
@@ -557,9 +564,12 @@ class MyWindow(QMainWindow):
                 self.DataDict[key] = self.DataDict[key] + [self.DataDict[key][data_len-1]]
 
     def UpdateDataDict(self, code, data):
-        data_len = len(self.DataDict[code])
-        self.DataDict[code][data_len-1] = data
-        print(datetime.datetime.now()," Update ",code, data)
+        try:
+            data_len = len(self.DataDict[code])
+            self.DataDict[code][data_len-1] = data
+            print(datetime.datetime.now()," Update ",code, data)
+        except:
+            pass
     #############################################
 
 if __name__ == "__main__":
