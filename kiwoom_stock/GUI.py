@@ -3,15 +3,17 @@ from PyQt5.QtWidgets import *
 from PyQt5.QAxContainer import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
+import random
 import datetime
 import time
 import threading
+from tqdm import tqdm
 
 
 class MyWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setGeometry(300, 300, 830, 560)
+        self.setGeometry(300, 300, 1230, 1260)
         self.setWindowTitle("Coturnix")
 
         self.range = None
@@ -24,8 +26,8 @@ class MyWindow(QMainWindow):
         self.previous_day_quantity = False
 
         
-        table_width = 750
-        table_height = 500
+        table_width = 1100
+        table_height = 1000
         self.tableWidget = QTableWidget(self)
         self.tableWidget.move(10, 40)
         self.tableWidget.resize(table_width, table_height)
@@ -41,7 +43,7 @@ class MyWindow(QMainWindow):
 
         self.tableWidget.doubleClicked.connect(self.table_double_clicked)
 
-        sys_text_height = 200
+        sys_text_height = 300
         sys_text_width = 300
         self.sys_text_edit = QPlainTextEdit(self)
         self.sys_text_edit.setReadOnly(True)
@@ -49,7 +51,7 @@ class MyWindow(QMainWindow):
         self.sys_text_edit.resize(sys_text_width, sys_text_height)
 
 
-        plain_text_height = 330
+        plain_text_height = 600
         plain_text_width = 300
         self.plain_text_edit = QPlainTextEdit(self)
         self.plain_text_edit.setReadOnly(True)
@@ -59,7 +61,12 @@ class MyWindow(QMainWindow):
         self.account_text = QLineEdit(self)
         self.account_text.setReadOnly(True)
         self.account_text.move(10, 10)
-        self.account_text.resize(150, 24)
+        self.account_text.resize(210, 24)
+
+        self.account_money_text = QLineEdit(self)
+        self.account_money_text.setReadOnly(True)
+        self.account_money_text.move(300, 10)
+        self.account_money_text.resize(230, 24)
         
         self.setFixedSize(table_width+plain_text_width+30, plain_text_height+sys_text_height+40)
 
@@ -83,7 +90,7 @@ class MyWindow(QMainWindow):
 
         self.DataDict = {}
 
-        self.view_num = 15
+        self.view_num = 25
 
         self.login_event_loop = QEventLoop()
         self.CommConnect()          # 로그인이 될 때까지 대기
@@ -92,7 +99,10 @@ class MyWindow(QMainWindow):
     def table_double_clicked(self):
         row = self.tableWidget.currentIndex().row()
         column = self.tableWidget.currentIndex().column()
-        print(self.tableWidget.item(row,column).text())
+        code = self.tableWidget.item(row,0).text()
+        # self.tableWidget.setItem(row_num,0,QTableWidgetItem(f"{code}"))
+        print(self.DataDict[code])
+        # print(self.tableWidget.item(row,0).text())
 
 
 
@@ -108,7 +118,6 @@ class MyWindow(QMainWindow):
         self.sendCondition("0156",self.condition[condition_num],condition_num,1)
 
         #### 조건문 결과 출력
-        # time.sleep(1)
         try:
             check_code_exist = kiwoom.codeList[0]
             codeList = kiwoom.codeList
@@ -118,25 +127,38 @@ class MyWindow(QMainWindow):
     def run(self):
         accounts = self.GetLoginInfo("ACCNO")
         self.account = accounts.split(';')[0]
-        self.account_text.setText(f"계좌번호: {self.account}")
+        self.account_text.setText(f" 계좌번호: {self.account}")
 
-        self.ConditionMethod()
+        self.ConditionMethod()  
 
-        # TR 요청 
-        for i,code in enumerate(self.codeList):
-            print(code)
-            time.sleep(0.25)
-            if i == self.view_num:
-                break
-            self.request_opt10001(code)
-            self.subscribe_stock_conclusion('2', code)
-
+        self.DisConnectRealData('1')
+        self.DisConnectRealData('2')
         
+        # 사전 초기화
+        self.InitializeDataDict(self.codeList)
+
+        # self.SetRealReg('2', str(self.codeList[-1]), "20", 0)
+        # TR 요청 
+        for i,code in enumerate(tqdm(self.codeList[0:self.view_num])):
+            time.sleep(0.3)
+            self.request_opt10001(code)
+            # self.subscribe_stock_conclusion('2', code)
+        
+        # self.SetRealReg('100', str(self.codeList[0]), "20", 0)
+        # self.sys_text_edit.appendPlainText(f"[{code} 주식체결 구독신청]")
+
+        for code in self.codeList[0:self.view_num]:
+            self.subscribe_stock_conclusion('2', code)
+        
+
+        # for i in range(20):
+        #     temp_color = random.randrange(1,100)
+        #     self.tableWidget.item(i,1).setBackground(QColor(255,255-temp_color,255-temp_color))
+
         self.request_opw00001()
         self.request_opw00004()
 
         ## 주식 사전 기록
-        self.InitializeDataDict(self.codeList)
         AutoUpdate = threading.Thread(target = self.AutoUpdateDataDict)
         AutoUpdate.start()
 
@@ -144,7 +166,6 @@ class MyWindow(QMainWindow):
 
         # 주식체결 (실시간)
         self.subscribe_market_time('1')
-        # self.subscribe_stock_conclusion('2')
 
     def GetLoginInfo(self, tag):
         data = self.ocx.dynamicCall("GetLoginInfo(QString)", tag)
@@ -152,7 +173,7 @@ class MyWindow(QMainWindow):
 
     def _handler_login(self, err_code):
         if err_code == 0:
-            self.plain_text_edit.appendPlainText("로그인 완료")
+            self.sys_text_edit.appendPlainText("[LOGIN SUCCESS]")
         self.login_event_loop.exit()
 
     def _handler_tr_data(self, screen_no, rqname, trcode, record, next):
@@ -188,40 +209,42 @@ class MyWindow(QMainWindow):
             amount = self.GetCommData(trcode, rqname, 0, "거래량")
 
             if code != '':
-                self.tableWidget.setItem(self.codeNum,0,QTableWidgetItem(f"{code}"))
-                self.tableWidget.setItem(self.codeNum,1,QTableWidgetItem(f"{name}"))
-                self.tableWidget.setItem(self.codeNum,2,QTableWidgetItem(f"{abs(int(start_price))}"))
-                self.tableWidget.setItem(self.codeNum,3,QTableWidgetItem(f"{abs(int(high_price))}"))
-                self.tableWidget.setItem(self.codeNum,4,QTableWidgetItem(f"{abs(int(low_price))}"))
-                self.tableWidget.setItem(self.codeNum,5,QTableWidgetItem(f"{abs(int(cur_price))}"))
-                self.tableWidget.setItem(self.codeNum,6,QTableWidgetItem(f"{amount}"))
+                row_num = self.codeList.index(code)
 
-                if int(start_price) > 0:
-                    self.tableWidget.item(self.codeNum,2).setForeground(QBrush(Qt.red))
-                elif int(start_price) < 0:
-                    self.tableWidget.item(self.codeNum,2).setForeground(QBrush(Qt.blue))
-                if int(high_price) > 0:
-                    self.tableWidget.item(self.codeNum,3).setForeground(QBrush(Qt.red))
-                elif int(high_price) < 0:
-                    self.tableWidget.item(self.codeNum,3).setForeground(QBrush(Qt.blue))
-                if int(low_price) > 0:
-                    self.tableWidget.item(self.codeNum,4).setForeground(QBrush(Qt.red))
-                elif int(low_price) < 0:
-                    self.tableWidget.item(self.codeNum,4).setForeground(QBrush(Qt.blue))
-                if int(cur_price) > 0:
-                    self.tableWidget.item(self.codeNum,5).setForeground(QBrush(Qt.red))
-                elif int(cur_price) < 0:
-                    self.tableWidget.item(self.codeNum,5).setForeground(QBrush(Qt.blue))
+                self.tableWidget.setItem(row_num,0,QTableWidgetItem(f"{code}"))
+                self.tableWidget.setItem(row_num,1,QTableWidgetItem(f"{name}"))
+                self.tableWidget.setItem(row_num,2,QTableWidgetItem(f"{abs(int(start_price))}"))
+                self.tableWidget.setItem(row_num,3,QTableWidgetItem(f"{abs(int(high_price))}"))
+                self.tableWidget.setItem(row_num,4,QTableWidgetItem(f"{abs(int(low_price))}"))
+                self.tableWidget.setItem(row_num,5,QTableWidgetItem(f"{abs(int(cur_price))}"))
+                self.tableWidget.setItem(row_num,6,QTableWidgetItem(f"{amount}"))
+
                 
-                self.tableWidget.item(self.codeNum,5).setBackground(QColor(235,255,255))
+                if int(start_price) > 0:
+                    self.tableWidget.item(row_num,2).setForeground(QBrush(Qt.red))
+                elif int(start_price) < 0:
+                    self.tableWidget.item(row_num,2).setForeground(QBrush(Qt.blue))
+                if int(high_price) > 0:
+                    self.tableWidget.item(row_num,3).setForeground(QBrush(Qt.red))
+                elif int(high_price) < 0:
+                    self.tableWidget.item(row_num,3).setForeground(QBrush(Qt.blue))
+                if int(low_price) > 0:
+                    self.tableWidget.item(row_num,4).setForeground(QBrush(Qt.red))
+                elif int(low_price) < 0:
+                    self.tableWidget.item(row_num,4).setForeground(QBrush(Qt.blue))
+                if int(cur_price) > 0:
+                    self.tableWidget.item(row_num,5).setForeground(QBrush(Qt.red))
+                elif int(cur_price) < 0:
+                    self.tableWidget.item(row_num,5).setForeground(QBrush(Qt.blue))
+                
+                self.tableWidget.item(row_num,5).setBackground(QColor(235,255,255))
 
-                self.codeNum = self.codeNum + 1
+                # self.codeNum = self.codeNum + 1
 
         elif rqname == "예수금조회":
-            주문가능금액 = self.GetCommData(trcode, rqname, 0, "주문가능금액")
-            주문가능금액 = int(주문가능금액)
-            self.amount = int(주문가능금액 * 0.2)
-            self.plain_text_edit.appendPlainText(f"주문가능금액: {주문가능금액} 투자금액: {self.amount}")
+            available = self.GetCommData(trcode, rqname, 0, "주문가능금액")
+            available = int(available)
+            self.account_money_text.setText(f" 주문가능금액: {available}")
 
         elif rqname == "계좌평가현황":
             rows = self.GetRepeatCnt(trcode, rqname)
@@ -283,19 +306,19 @@ class MyWindow(QMainWindow):
         :param msg: string - 메세지
         """
         # print("[receiveConditionVer]")
-        self.sys_text_edit.appendPlainText("[receiveConditionVer]")
+        self.sys_text_edit.appendPlainText("[ReceiveConditionVer]")
         try:
             if not receive:
                 return
                 
             self.condition = self.getConditionNameList()
 
-            self.sys_text_edit.appendPlainText(f"조건문 갯수: {len(self.condition)}")
+            self.sys_text_edit.appendPlainText(f"[조건문 개수: {len(self.condition)}]")
             # print("Condition Number: ", len(self.condition))
 
             for key in self.condition.keys():
                 # print("Condition: ", key, ": ", self.condition[key])
-                self.sys_text_edit.appendPlainText(f"검색 조건문: {self.condition[key]}")
+                self.sys_text_edit.appendPlainText(f"[검색 조건문: {self.condition[key]}]")
                 # print("key type: ", type(key))
 
         except Exception as e:
@@ -316,7 +339,7 @@ class MyWindow(QMainWindow):
 
         # print("[receiveTrCondition], ")
         
-        self.sys_text_edit.appendPlainText("[receiveTrCondition]")
+        self.sys_text_edit.appendPlainText("[ReceiveTrCondition]")
         try:
             if codes == "":
                 return
@@ -324,8 +347,7 @@ class MyWindow(QMainWindow):
             codeList = codes.split(';')
             del codeList[-1]
             self.codeList = codeList
-            print("종목개수: ", len(codeList))
-            self.sys_text_edit.appendPlainText(f"종목개수 {len(codeList)}")
+            self.sys_text_edit.appendPlainText(f"[종목개수: {len(codeList)}]")
             
            
         finally:
@@ -349,19 +371,19 @@ class MyWindow(QMainWindow):
         # bot.sendMessage(chat_id=chat_id, text="종목코드: {} , {}".format(code, event))
 
     def getConditionLoad(self):
-        self.sys_text_edit.appendPlainText("[getConditionLoad]")
+        self.sys_text_edit.appendPlainText("[GetConditionLoad]")
         """ 조건식 목록 요청 메서드 """
 
         isLoad = self.ocx.dynamicCall("GetConditionLoad()")
         # 요청 실패시
         if not isLoad:
-            self.sys_text_edit.appendPlainText("[getConditionLoad(): 조건식 요청 실패]")
+            self.sys_text_edit.appendPlainText("[GetConditionLoad(): 조건식 요청 실패]")
         # receiveConditionVer() 이벤트 메서드에서 루프 종료
         self.conditionLoop = QEventLoop()
         self.conditionLoop.exec_()
 
     def getConditionNameList(self):
-        self.sys_text_edit.appendPlainText("[getConditionNameList]")
+        self.sys_text_edit.appendPlainText("[GetConditionNameList]")
         """
         조건식 획득 메서드
         조건식을 딕셔너리 형태로 반환합니다.
@@ -372,7 +394,7 @@ class MyWindow(QMainWindow):
         data = self.ocx.dynamicCall("GetConditionNameList()")
 
         if data == "":
-            print("getConditionNameList(): 사용자 조건식이 없습니다.")
+            print("GetConditionNameList(): 사용자 조건식이 없습니다.")
 
         conditionList = data.split(';')
         del conditionList[-1]
@@ -386,7 +408,7 @@ class MyWindow(QMainWindow):
         return conditionDictionary
 
     def sendCondition(self, screenNo, conditionName, conditionIndex, isRealTime):
-        self.sys_text_edit.appendPlainText("[sendCondition]")
+        self.sys_text_edit.appendPlainText("[SendCondition]")
         """
         종목 조건검색 요청 메서드
         이 메서드로 얻고자 하는 것은 해당 조건에 맞는 종목코드이다.
@@ -414,7 +436,7 @@ class MyWindow(QMainWindow):
 
     def sendConditionStop(self, screenNo, conditionName, conditionIndex):
 
-        print("[sendConditionStop]")
+        print("[SendConditionStop]")
         """ 종목 조건검색 중지 메서드 """
 
         self.ocx.dynamicCall("SendConditionStop(QString, QString, int)", screenNo, conditionName, conditionIndex)
@@ -448,9 +470,10 @@ class MyWindow(QMainWindow):
 
             ## 시가, 고가, 저가, 현재가, 누적거래량
             stock_realtime_data = [a7, a8, a9, a0, a5]
+            abs_stock_realtime_data = stock_realtime_data
             for i in range(len(stock_realtime_data)):
-                abs_stock_realtime_data = abs(int(stock_realtime_data[i]))
-            print("abs_stock_realtime_data",abs_stock_realtime_data)
+                abs_stock_realtime_data[i] = abs(int(stock_realtime_data[i]))
+            # print("abs_stock_realtime_data",code,abs_stock_realtime_data, stock_realtime_data)
             self.UpdateDataDict(code,abs_stock_realtime_data)
 
             row_num = self.codeList.index(code)
@@ -511,6 +534,11 @@ class MyWindow(QMainWindow):
             # # 로깅
             # self.plain_text_edit.appendPlainText(f"시간: {체결시간} 목표가: {self.target} 현재가: {현재가} 보유여부: {self.hold}")
 
+    
+    def DisConnectRealData(self, screen_no):
+        self.ocx.dynamicCall("DisConnectRealData(QString)", screen_no)
+        print("구독 해지 완료")
+
     def _handler_chejan_data(self, gubun, item_cnt, fid_list):
         if 'gubun' == '1':      # 잔고통보
             예수금 = self.GetChejanData('951')
@@ -519,13 +547,12 @@ class MyWindow(QMainWindow):
             self.plain_text_edit.appendPlainText(f"투자금액 업데이트 됨: {self.amount}")
 
     def subscribe_stock_conclusion(self, screen_no, code):
-        # self.SetRealReg(screen_no, "229200", "20", 0)
         self.SetRealReg(screen_no, str(code), "20", 1)
-        self.plain_text_edit.appendPlainText(f"{code} 주식체결 구독신청")
+        self.sys_text_edit.appendPlainText(f"[{code} 주식체결 구독신청]")
 
     def subscribe_market_time(self, screen_no):
         self.SetRealReg(screen_no, "", "215", 0)
-        self.plain_text_edit.appendPlainText("장시작시간 구독신청")
+        self.sys_text_edit.appendPlainText("[장시작시간 구독신청]")
 
     # TR 요청을 위한 메소드
     def SetInputValue(self, id, value):
@@ -559,7 +586,7 @@ class MyWindow(QMainWindow):
             time.sleep(60 - datetime.datetime.now().second)
             # time.sleep(10)
             for key, _ in self.DataDict.items():
-                print("autoupdate",datetime.datetime.now(), key)
+                # print("[Autoupdate]",datetime.datetime.now(), key)
                 data_len = len(self.DataDict[key])
                 self.DataDict[key] = self.DataDict[key] + [self.DataDict[key][data_len-1]]
 
@@ -567,7 +594,8 @@ class MyWindow(QMainWindow):
         try:
             data_len = len(self.DataDict[code])
             self.DataDict[code][data_len-1] = data
-            print(datetime.datetime.now()," Update ",code, data)
+            self.sys_text_edit.appendPlainText(f"Update {code}")
+            # print(datetime.datetime.now()," Update ",code)
         except:
             pass
     #############################################
