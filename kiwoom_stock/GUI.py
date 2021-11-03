@@ -1,4 +1,5 @@
 import sys
+import pandas as pd
 from PyQt5.QtWidgets import *
 from PyQt5.QAxContainer import *
 from PyQt5.QtGui import *
@@ -8,7 +9,6 @@ import datetime
 import time
 import threading
 from tqdm import tqdm
-
 
 class MyWindow(QMainWindow):
     def __init__(self):
@@ -139,10 +139,26 @@ class MyWindow(QMainWindow):
 
         # self.SetRealReg('2', str(self.codeList[-1]), "20", 0)
         # TR 요청 
-        for i,code in enumerate(tqdm(self.codeList[0:self.view_num])):
-            time.sleep(0.3)
-            self.request_opt10001(code)
+
+        # for i,code in enumerate(tqdm(self.codeList[0:self.view_num])):
+        #     time.sleep(0.3)
+        #     self.request_opt10001(code)
             # self.subscribe_stock_conclusion('2', code)
+
+        
+        # for i in range(100):
+        #     code = self.codeList[0]
+        #     time.sleep(1)
+        #     self.request_opt10001(code)
+        #     print(i)
+
+        code = self.codeList[1]
+        print("====")
+        self.request_opt10080(code)
+        test = pd.read_csv(f"volume_data/{code}.csv")
+        print(test.values.tolist())
+
+
         
         # self.SetRealReg('100', str(self.codeList[0]), "20", 0)
         # self.sys_text_edit.appendPlainText(f"[{code} 주식체결 구독신청]")
@@ -240,6 +256,25 @@ class MyWindow(QMainWindow):
                 self.tableWidget.item(row_num,5).setBackground(QColor(235,255,255))
 
                 # self.codeNum = self.codeNum + 1
+        elif rqname == "분봉데이터":
+            code = self.GetCommData(trcode, rqname, 0, "종목코드")
+            amount = []
+            trade_time = []
+            # rows = self.GetRepeatCnt(trcode, rqname)
+            for i in range(6,35,7):
+                amount.append(self.GetCommData(trcode, rqname, i, "거래량"))
+                trade_time.append(self.GetCommData(trcode, rqname, i, "체결시간"))
+
+            if code != '':
+                df = pd.DataFrame({'col1':trade_time, 'col2':amount})
+                path = "volume_data/{}.csv".format(code)
+                # df.to_excel(path, mode = 'w', index = False) 
+                df.to_csv(path, index = False) 
+
+        
+
+            
+
 
         elif rqname == "예수금조회":
             available = self.GetCommData(trcode, rqname, 0, "주문가능금액")
@@ -268,9 +303,19 @@ class MyWindow(QMainWindow):
         self.SetInputValue("수정주가구분", 1)
         self.CommRqData("일봉데이터", "opt10081", 0, "9000")
 
+    def request_opt10080(self, code):
+        now = datetime.datetime.now()
+        today = now.strftime("%Y%m%d")
+        self.SetInputValue("종목코드",code)
+        self.SetInputValue("틱범위",60)
+        # self.SetInputValue("기준일자", today)
+        self.SetInputValue("수정주가구분", 1)
+        self.CommRqData("분봉데이터", "opt10080", 0, "9003")
+
     def request_opt10001(self, code):
         self.SetInputValue("종목코드",code)
         self.CommRqData("주식기본정보", "opt10001", 0, "9001")
+
 
     def request_opw00001(self):
         self.SetInputValue("계좌번호", self.account)
