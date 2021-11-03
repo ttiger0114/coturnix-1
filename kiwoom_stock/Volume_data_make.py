@@ -32,15 +32,15 @@ class Datamaker(QMainWindow):
         self.login_event_loop.exec()
 
     def run(self):
-        kospi = self.ocx.GetCodeListByMarket('0')
-        kospi = kospi.split(';')
+        # kospi = self.ocx.GetCodeListByMarket('0')
+        # kospi = kospi.split(';')
         kosdaq = self.ocx.GetCodeListByMarket('10')
         kosdaq = kosdaq.split(';')
 
-        codes = kospi + kosdaq
+        # codes = kospi + kosdaq
+        codes = kosdaq
 
         for num, code in enumerate(tqdm(codes)):
-            print(num," ",code)
             self.request_opt10080(code)
             time.sleep(3.7)
 
