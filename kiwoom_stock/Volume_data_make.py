@@ -39,15 +39,12 @@ class Datamaker(QMainWindow):
 
         # codes = kospi + kosdaq
         codes = kosdaq
-
         for num, code in enumerate(tqdm(codes)):
             self.request_opt10080(code)
             time.sleep(3.7)
 
         exit()
         
-        
-
     def GetLoginInfo(self, tag):
         data = self.ocx.dynamicCall("GetLoginInfo(QString)", tag)
         return data
