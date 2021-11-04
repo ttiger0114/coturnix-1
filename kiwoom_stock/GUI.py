@@ -8,6 +8,7 @@ import random
 import datetime
 import time
 import threading
+import numpy as np
 from tqdm import tqdm
 
 class MyWindow(QMainWindow):
@@ -88,7 +89,13 @@ class MyWindow(QMainWindow):
         self.codeList = []
         self.codeNum = 0
 
+        ### DICTIONNARY
         self.DataDict = {}
+        self.FirstReceiveFlag = {}
+        self.InitialData = {}
+        self.VolumeReference = {}
+
+        ####################
 
         self.view_num = 25
 
@@ -136,35 +143,22 @@ class MyWindow(QMainWindow):
         
         # 사전 초기화
         self.InitializeDataDict(self.codeList)
+        for code in self.codeList:
+            self.InitializeVolumeReference(code)
 
         # self.SetRealReg('2', str(self.codeList[-1]), "20", 0)
         # TR 요청 
 
-        # for i,code in enumerate(tqdm(self.codeList[0:self.view_num])):
-        #     time.sleep(0.3)
-        #     self.request_opt10001(code)
-            # self.subscribe_stock_conclusion('2', code)
+        for i,code in enumerate(tqdm(self.codeList[0:self.view_num])):
+            time.sleep(0.3)
+            self.request_opt10001(code)
+            self.subscribe_stock_conclusion('2', code)
 
         
-        # for i in range(100):
-        #     code = self.codeList[0]
-        #     time.sleep(1)
-        #     self.request_opt10001(code)
-        #     print(i)
-
-        code = self.codeList[1]
-        print("====")
-        self.request_opt10080(code)
-        test = pd.read_csv(f"volume_data/{code}.csv")
-        print(test.values.tolist())
-
-
-        
-        # self.SetRealReg('100', str(self.codeList[0]), "20", 0)
+        # self.SetRealReg('100', str(self.co
+        # deList[0]), "20", 0)
         # self.sys_text_edit.appendPlainText(f"[{code} 주식체결 구독신청]")
 
-        for code in self.codeList[0:self.view_num]:
-            self.subscribe_stock_conclusion('2', code)
         
 
         # for i in range(20):
@@ -177,7 +171,6 @@ class MyWindow(QMainWindow):
         ## 주식 사전 기록
         AutoUpdate = threading.Thread(target = self.AutoUpdateDataDict)
         AutoUpdate.start()
-
 
 
         # 주식체결 (실시간)
@@ -270,11 +263,6 @@ class MyWindow(QMainWindow):
                 path = "volume_data/{}.csv".format(code)
                 # df.to_excel(path, mode = 'w', index = False) 
                 df.to_csv(path, index = False) 
-
-        
-
-            
-
 
         elif rqname == "예수금조회":
             available = self.GetCommData(trcode, rqname, 0, "주문가능금액")
@@ -391,8 +379,16 @@ class MyWindow(QMainWindow):
 
             codeList = codes.split(';')
             del codeList[-1]
-            self.codeList = codeList
-            self.sys_text_edit.appendPlainText(f"[종목개수: {len(codeList)}]")
+            ### KOSDAQ Check ######################
+            kosdaq_codeList = []
+            kosdaq = self.ocx.GetCodeListByMarket('10')
+            kosdaq = kosdaq.split(';')
+            for code in codeList:
+                if code in kosdaq:
+                    kosdaq_codeList.append(code)
+            #######################################
+            self.codeList = kosdaq_codeList
+            self.sys_text_edit.appendPlainText(f"[종목개수: {len(kosdaq_codeList)}]")
             
            
         finally:
@@ -512,6 +508,7 @@ class MyWindow(QMainWindow):
             a7 = self.GetCommRealData(code,16) #시가
             a8 = self.GetCommRealData(code,17) #고가
             a9 = self.GetCommRealData(code,18) #저가
+            a10 = self.GetCommRealData(code,228) #체결강도
 
             ## 시가, 고가, 저가, 현재가, 누적거래량
             stock_realtime_data = [a7, a8, a9, a0, a5]
@@ -625,25 +622,74 @@ class MyWindow(QMainWindow):
         for code in codeList:
             temp = [0,0,0,0,0]
             self.DataDict[code] = [temp]
+            self.FirstReceiveFlag[code] = 0
 
     def AutoUpdateDataDict(self):
         while(True):
-            time.sleep(60 - datetime.datetime.now().second)
-            # time.sleep(10)
+            # time.sleep(60 - datetime.datetime.now().second)
+            time.sleep(3)
+
+            Stacked_code = []
+            Stacked_Stockdata = []
+
             for key, _ in self.DataDict.items():
                 # print("[Autoupdate]",datetime.datetime.now(), key)
                 data_len = len(self.DataDict[key])
-                self.DataDict[key] = self.DataDict[key] + [self.DataDict[key][data_len-1]]
+                
+                ### Preprocessed Data before sending ########
+                # self.SendData(key,self.DataDict[key][data_len-1])
+                if data_len >= 6:
+                    preprocessed_data = self.DataDict[key][data_len-6:data_len]
+                    for i in range(4):
+                        preprocessed_data[:][i] = preprocessed_data[:][i]/self.InitialData[key][0]
+                    preprocessed_data[:][4] = preprocessed_data[:][4]/self.VolumeReference[key]
 
+                    # self.SendData(key,preprocessed_data)
+                    Stacked_code.append(key)
+                    Stacked_Stockdata.append(preprocessed_data)
+                ######################################################
+
+                ## Auto Update #########################
+                if self.DataDict[key][data_len-1] != [0,0,0,0,0]:
+                    self.DataDict[key] = self.DataDict[key] + [self.DataDict[key][data_len-1]]
+                ################################
+
+            ### Send Packet to AI model ########
+            if Stacked_code != []:
+                self.SendData(Stacked_code, Stacked_Stockdata)
+
+
+            
     def UpdateDataDict(self, code, data):
         try:
             data_len = len(self.DataDict[code])
+
+            ## Recorde Initial Data ####
+            if self.FirstReceiveFlag[code] == 0:
+                self.InitialData[code] = data
+                self.FirstReceiveFlag[code] = 1
+            #############################
+
             self.DataDict[code][data_len-1] = data
             self.sys_text_edit.appendPlainText(f"Update {code}")
             # print(datetime.datetime.now()," Update ",code)
         except:
             pass
+
+    def InitializeVolumeReference(self, code):
+        datapath = f"volume_data/{code}.csv"
+        data = pd.read_csv(datapath)
+        volume = data['col2'].sum()/300
+        self.VolumeReference[code] = volume
+
+
     #############################################
+    ### Send Packet to AI model ########
+    def SendData(self, codeList, data):
+        ret = [codeList, data]
+        # ret = np.array(ret[1])
+        # print(ret.shape)
+        # print(ret[0], ret[1])
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
