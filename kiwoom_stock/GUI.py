@@ -10,6 +10,7 @@ import time
 import threading
 import numpy as np
 from tqdm import tqdm
+import LoopBackSocket as lb
 
 class MyWindow(QMainWindow):
     def __init__(self):
@@ -96,6 +97,9 @@ class MyWindow(QMainWindow):
         self.VolumeReference = {}
 
         ####################
+        ####### Socket #####
+        self.client = lb.ClientSocket()
+
 
         self.view_num = 25
 
@@ -627,7 +631,7 @@ class MyWindow(QMainWindow):
     def AutoUpdateDataDict(self):
         while(True):
             # time.sleep(60 - datetime.datetime.now().second)
-            time.sleep(3)
+            time.sleep(1)
 
             Stacked_code = []
             Stacked_Stockdata = []
@@ -638,11 +642,17 @@ class MyWindow(QMainWindow):
                 
                 ### Preprocessed Data before sending ########
                 # self.SendData(key,self.DataDict[key][data_len-1])
-                if data_len >= 6:
-                    preprocessed_data = self.DataDict[key][data_len-6:data_len]
-                    for i in range(4):
-                        preprocessed_data[:][i] = preprocessed_data[:][i]/self.InitialData[key][0]
-                    preprocessed_data[:][4] = preprocessed_data[:][4]/self.VolumeReference[key]
+                len_limit = 7
+                if data_len >= len_limit:
+                    origin_data = np.array(self.DataDict[key][data_len-len_limit:data_len]).astype(float)
+                    preprocessed_data = np.array(self.DataDict[key][data_len-len_limit+1:data_len]).astype(float)
+
+                    ### Make volume amount to volume difference
+                    for i in range(len_limit-1):
+                        preprocessed_data[i,4] = origin_data[i+1,4] - origin_data[i,4]
+
+                    preprocessed_data[0:len_limit-1,0:4] = preprocessed_data[0:len_limit-1,0:4]/self.InitialData[key][0]
+                    preprocessed_data[0:len_limit-1,4] = preprocessed_data[0:len_limit-1,4]/self.VolumeReference[key]
 
                     # self.SendData(key,preprocessed_data)
                     Stacked_code.append(key)
@@ -656,7 +666,7 @@ class MyWindow(QMainWindow):
 
             ### Send Packet to AI model ########
             if Stacked_code != []:
-                self.SendData(Stacked_code, Stacked_Stockdata)
+                self.SendData(Stacked_code, np.array(Stacked_Stockdata))
 
 
             
@@ -687,8 +697,9 @@ class MyWindow(QMainWindow):
     ### Send Packet to AI model ########
     def SendData(self, codeList, data):
         ret = [codeList, data]
-        # ret = np.array(ret[1])
-        # print(ret.shape)
+        ret = np.array(ret[1])
+        print(data)
+        print(ret.shape)
         # print(ret[0], ret[1])
 
 if __name__ == "__main__":
