@@ -38,6 +38,6 @@ if __name__ == "__main__":
         if str(type(data)) == "<class 'numpy.ndarray'>":
             print(torch.tensor(data))
         
-        server.SendData(['code', "buy" ])
+        server.SendData(['code', "buy"])
     
             
