@@ -1,11 +1,11 @@
-# Data Preprocess
+# Data Analysis
 
-Data Preprocessing code is for colab pro environment (25+ GB RAM)
+Data Analysis code is for colab pro environment (25+ GB RAM)
 
 ### Directory Structure
 
 ```bash
-└── data_preprocess (* here)
+└── data_preprocess
     ├── cleaved_data
     ├── padded_data
     ├── data
@@ -13,7 +13,7 @@ Data Preprocessing code is for colab pro environment (25+ GB RAM)
     ├── interpolate_data.py
     └── data_unzip.sh
     
-└── data_analysis
+└── data_analysis (* here)
     ├── utils
     ├── autoencoder.py
     ├── tSNE.py
