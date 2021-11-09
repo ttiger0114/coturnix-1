@@ -5,7 +5,7 @@ from PyQt5.QtCore import *
 import time
 import sqlite3
 import numpy as np
-import LoopBackSocket as lb
+import AI_server as server
 
 TR_REQ_TIME_INTERVAL = 0.2
 class Kiwoom(QAxWidget):
@@ -350,7 +350,7 @@ if __name__ == "__main__":
     kiwoom = Kiwoom()
     kiwoom.comm_connect()
     ## Clinet Socket Open
-    client = lb.ClientSocket()
+    client = server.ClientSocket()
 
     ## 계좌 정보 조회
     kiwoom.set_input_value("계좌번호","8010523011")

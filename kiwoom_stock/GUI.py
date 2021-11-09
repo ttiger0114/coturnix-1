@@ -101,7 +101,7 @@ class MyWindow(QMainWindow):
         self.client = lb.ClientSocket()
 
 
-        self.view_num = 25
+        self.view_num = 10
 
         self.login_event_loop = QEventLoop()
         self.CommConnect()          # 로그인이 될 때까지 대기
@@ -136,6 +136,12 @@ class MyWindow(QMainWindow):
             pass
 
     def run(self):
+        
+        ClientWaiting = threading.Thread(target = self.ClientWaiting)
+        ClientWaiting.start()
+
+        self.client.SendData(np.array([1,2,3,4]))
+
         accounts = self.GetLoginInfo("ACCNO")
         self.account = accounts.split(';')[0]
         self.account_text.setText(f" 계좌번호: {self.account}")
@@ -175,6 +181,10 @@ class MyWindow(QMainWindow):
         ## 주식 사전 기록
         AutoUpdate = threading.Thread(target = self.AutoUpdateDataDict)
         AutoUpdate.start()
+
+        
+        self.client.SendData(np.array([1,2,3,4,5]))
+        
 
 
         # 주식체결 (실시간)
@@ -631,7 +641,7 @@ class MyWindow(QMainWindow):
     def AutoUpdateDataDict(self):
         while(True):
             # time.sleep(60 - datetime.datetime.now().second)
-            time.sleep(1)
+            time.sleep(2)
 
             Stacked_code = []
             Stacked_Stockdata = []
@@ -651,8 +661,9 @@ class MyWindow(QMainWindow):
                     for i in range(len_limit-1):
                         preprocessed_data[i,4] = origin_data[i+1,4] - origin_data[i,4]
 
-                    preprocessed_data[0:len_limit-1,0:4] = preprocessed_data[0:len_limit-1,0:4]/self.InitialData[key][0]
-                    preprocessed_data[0:len_limit-1,4] = preprocessed_data[0:len_limit-1,4]/self.VolumeReference[key]
+                    preprocessed_data[0:len_limit-1,0:4] = ((preprocessed_data[0:len_limit-1,0:4]/self.InitialData[key][0])-1)*100
+
+                    preprocessed_data[0:len_limit-1,4] = (preprocessed_data[0:len_limit-1,4]/self.VolumeReference[key])*0.1
 
                     # self.SendData(key,preprocessed_data)
                     Stacked_code.append(key)
@@ -661,12 +672,22 @@ class MyWindow(QMainWindow):
 
                 ## Auto Update #########################
                 if self.DataDict[key][data_len-1] != [0,0,0,0,0]:
-                    self.DataDict[key] = self.DataDict[key] + [self.DataDict[key][data_len-1]]
+                    data = self.DataDict[key][data_len-1]
+                    current_price = data[3]
+
+                    ## 길이가 1보다 클경우, 이전 종가를 현재 시가로 자동업데이트
+                    if data_len > 1:
+                        data[0] =  self.DataDict[key][data_len-2][3]
+
+                    data[1] = current_price
+                    data[2] = current_price
+                    self.DataDict[key] = self.DataDict[key] + [data]
                 ################################
 
             ### Send Packet to AI model ########
             if Stacked_code != []:
-                self.SendData(Stacked_code, np.array(Stacked_Stockdata))
+                # self.SendData(Stacked_code, np.array(Stacked_Stockdata))
+                self.client.SendData([Stacked_code, np.array(Stacked_Stockdata)])
 
 
             
@@ -679,8 +700,49 @@ class MyWindow(QMainWindow):
                 self.InitialData[code] = data
                 self.FirstReceiveFlag[code] = 1
             #############################
+            if data_len == 1:
+                new_data = [0,0,0,0,0]
+                new_data[0] = data[0]
 
-            self.DataDict[code][data_len-1] = data
+                if previous_data[1] < current_price:
+                    new_data[1] = current_price
+                else:
+                    new_data[1] = previous_data[1]
+
+                if previous_data[2] > current_price:
+                    new_data[2] = current_price
+                else:
+                    new_data[2] = previous_data[2]
+
+                new_data[3] = data[3]   ## 현재가는 그대로
+                new_data[4] = data[4]   ## 거래량도 그대로
+
+                self.DataDict[code][data_len-1] = new_data
+
+            elif data_len > 1:
+                previous_data = self.DataDict[code][data_len-1]
+                new_data = [0,0,0,0,0]
+                current_price = data[3]
+
+                new_data[0] = self.DataDict[code][data_len-2][3]  # 시가는 이전에 종가
+                if previous_data[1] < current_price:
+                    new_data[1] = current_price
+                else:
+                    new_data[1] = previous_data[1]
+
+                if previous_data[2] > current_price:
+                    new_data[2] = current_price
+                else:
+                    new_data[2] = previous_data[2]
+
+                new_data[3] = data[3]   ## 현재가는 그대로
+                new_data[4] = data[4]   ## 거래량도 그대로
+
+                self.DataDict[code][data_len-1] = new_data
+
+                # print(self.DataDict[code],self.DataDict[code][data_len-2][3], self.DataDict[code][data_len-1][0])
+                
+
             self.sys_text_edit.appendPlainText(f"Update {code}")
             # print(datetime.datetime.now()," Update ",code)
         except:
@@ -695,11 +757,14 @@ class MyWindow(QMainWindow):
 
     #############################################
     ### Send Packet to AI model ########
-    def SendData(self, codeList, data):
-        ret = [codeList, data]
-        ret = np.array(ret[1])
-        print(data)
-        print(ret.shape)
+    def ClientWaiting(self):
+        while(True):
+            self.client.Waiting()
+    # def SendData(self, codeList, data):
+    #     ret = [codeList, data]
+    #     ret = np.array(ret[1])
+        # print(data)
+        # print(ret.shape)
         # print(ret[0], ret[1])
 
 if __name__ == "__main__":

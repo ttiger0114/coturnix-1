@@ -13,15 +13,24 @@ class ServerSocket():
         self.socket.bind((HOST,PORT))
         self.socket.listen()
 
-    def Waiting(self):
+    def AcceptWait(self):
         self.client_socket, self.client_addr = self.socket.accept()
         print("Accept complete")
-        print("Wait Data------------------------")
+
+
+    def Waiting(self):
        
-        data_ = self.client_socket.recv(1024)
+        data_ = self.client_socket.recv(10000)
         if data_:
             data = pickle.loads(data_)
-            return data
+            print("From client")
+            print(data)
+            # return data
+
+    def SendData(self, input):
+        data = pickle.dumps(input)
+        self.client_socket.sendall(data)
+
 
 
 
@@ -30,6 +39,16 @@ class ClientSocket():
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR,1)
         self.socket.connect((HOST,PORT))
+
+
+    def Waiting(self):
+       
+        data_ = self.socket.recv(10000)
+        if data_:
+            data = pickle.loads(data_)
+            print("From server:")
+            print(data)
+            # return data
 
     def SendData(self, input):
         data = pickle.dumps(input)
