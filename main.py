@@ -31,9 +31,13 @@ if __name__ == "__main__":
 
     '''
     server = lb.ServerSocket()
+    server.AcceptWait()
     while True:
+
         data = server.Waiting()
         if str(type(data)) == "<class 'numpy.ndarray'>":
             print(torch.tensor(data))
+        
+        server.SendData(['code', "buy" ])
     
             
