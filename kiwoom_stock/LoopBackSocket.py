@@ -20,12 +20,12 @@ class ServerSocket():
 
     def Waiting(self):
        
-        data_ = self.client_socket.recv(10000)
+        data_ = self.client_socket.recv(100000)
         if data_:
             data = pickle.loads(data_)
-            print("From client")
-            print(data)
-            # return data
+            # print("From client")
+            # print(data)
+            return data
 
     def SendData(self, input):
         data = pickle.dumps(input)
@@ -43,12 +43,12 @@ class ClientSocket():
 
     def Waiting(self):
        
-        data_ = self.socket.recv(10000)
+        data_ = self.socket.recv(100000)
         if data_:
             data = pickle.loads(data_)
-            print("From server:")
-            print(data)
-            # return data
+            # print("From server:")
+            # print(data)
+            return data
 
     def SendData(self, input):
         data = pickle.dumps(input)
