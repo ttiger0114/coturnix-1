@@ -21,8 +21,10 @@ class MyWindow(QMainWindow):
         self.range = None
         self.target = None
         self.account = None
+        self.available = 0
         self.amount = None
         self.hold = None
+        self.profit_rate = 0.35
 
         self.previous_day_hold = False
         self.previous_day_quantity = False
@@ -95,6 +97,7 @@ class MyWindow(QMainWindow):
         self.FirstReceiveFlag = {}
         self.InitialData = {}
         self.VolumeReference = {}
+        self.TradingInfo = {}
 
         ####################
         ####### Socket #####
@@ -281,6 +284,7 @@ class MyWindow(QMainWindow):
         elif rqname == "예수금조회":
             available = self.GetCommData(trcode, rqname, 0, "주문가능금액")
             available = int(available)
+            self.available = available
             self.account_money_text.setText(f" 주문가능금액: {available}")
 
         elif rqname == "계좌평가현황":
@@ -534,6 +538,19 @@ class MyWindow(QMainWindow):
             self.UpdateDataDict(code,abs_stock_realtime_data)
             row_num = self.codeList.index(code)
 
+            ## 주식 매도
+            if self.TradingInfo[1] > 0:  ## 매수한 주식 존재시
+                current_price = abs_stock_realtime_data[3]
+                target_price = self.TradingInfo[0]*(1 + self.profit_rate/100)
+                low_price = self.TradingInfo[0]*(1 - self.profit_rate/100)
+                quantity = self.TradingInfo[1]
+
+                if current_price >= target_price or current_price <= low_price: # 조건 충족시 시장가 매도
+                    self.SendOrder("매도", "8001", self.account, 2, code , quantity, 0, "03", "")
+
+
+            ###############
+
             if row_num >= self.view_num:
                 return
 
@@ -584,8 +601,8 @@ class MyWindow(QMainWindow):
             # if self.hold is None and self.target is not None and self.amount is not None and 현재가 > self.target:
             #     self.hold = True 
             #     quantity = int(self.amount / 현재가)
-            #     self.SendOrder("매수", "8000", self.account, 1, "229200", quantity, 0, "03", "")
-            #     self.plain_text_edit.appendPlainText(f"시장가 매수 진행 수량: {quantity}")
+                # self.SendOrder("매수", "8000", self.account, 1, "229200", quantity, 0, "03", "")
+                # self.plain_text_edit.appendPlainText(f"시장가 매수 진행 수량: {quantity}")
 
             # # 로깅
             # self.plain_text_edit.appendPlainText(f"시간: {체결시간} 목표가: {self.target} 현재가: {현재가} 보유여부: {self.hold}")
@@ -596,11 +613,38 @@ class MyWindow(QMainWindow):
         print("구독 해지 완료")
 
     def _handler_chejan_data(self, gubun, item_cnt, fid_list):
-        if 'gubun' == '1':      # 잔고통보
-            예수금 = self.GetChejanData('951')
-            예수금 = int(예수금)
-            self.amount = int(예수금 * 0.2)
-            self.plain_text_edit.appendPlainText(f"투자금액 업데이트 됨: {self.amount}")
+        if 'gubun' == '0':  # 주식 매수 체결 완료
+            trading_state = self.GetChejanData('913')
+            code =  self.GetChejanData('9001')
+            name =  self.GetChejanData('302')
+            trading_number = self.GetChejanData('911') # 체결 수량
+            trading_price = self.GetChejanData('901') # 주문 가격
+
+            ## 거래 정보 갱신
+            if trading_state == '주식매수':
+                self.TradingInfo[code][0] = trading_price
+                self.TradingInfo[code][1] = self.TradingInfo[code][1] + trading_number
+            elif trading_state == '주식매도':
+                self.TradingInfo[code][1] = self.TradingInfo[code][1] - trading_number
+
+            now = datetime.datetime.now()
+            current_time = now.strftime("%H:%M:%S")
+            
+
+            self.plain_text_edit.setText(f"[{current_time}] {name} {trading_state} {trading_price} {trading_number}")
+            
+            ## 잔고 업데이트
+            available = self.GetChejanData('951')
+            available = int(available)
+            self.available = available
+            self.account_money_text.setText(f" 주문가능금액: {available}")
+
+        elif 'gubun' == '1':      # 잔고통보
+            available = self.GetChejanData('951')
+            available = int(available)
+            self.available = available
+            self.account_money_text.setText(f" 주문가능금액: {available}")
+
 
     def subscribe_stock_conclusion(self, screen_no, code):
         self.SetRealReg(screen_no, str(code), "20", 1)
@@ -637,6 +681,7 @@ class MyWindow(QMainWindow):
             temp = [0,0,0,0,0]
             self.DataDict[code] = [temp]
             self.FirstReceiveFlag[code] = 0
+            self.TradingInfo[code] = [0,0] # price, amount
 
     def AutoUpdateDataDict(self):
         while(True):
@@ -759,7 +804,20 @@ class MyWindow(QMainWindow):
     ### Send Packet to AI model ########
     def ClientWaiting(self):
         while(True):
-            self.client.Waiting()
+            received_data = self.client.Waiting()
+            if received_data[0] == 'buy':
+                codelist = received_data[1]
+                code_num = len(codelist)
+                available = self.available/code_num
+
+                for i, code in enumerate(codelist):
+                    time.sleep(0.24)
+                    ## 주문 요청
+                    data_len = len(self.DataDict[code])
+                    price = self.DataDict[code][data_len-2][3] 
+                    quantity = int(available / price)
+                    self.SendOrder("매수", "8000", self.account, 1, code , quantity, price, "00", "") ## 지정가매수
+
     # def SendData(self, codeList, data):
     #     ret = [codeList, data]
     #     ret = np.array(ret[1])
