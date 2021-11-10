@@ -23,8 +23,8 @@ class ServerSocket():
         data_ = self.client_socket.recv(100000)
         if data_:
             data = pickle.loads(data_)
-            print("From client")
-            print(data)
+            # print("From client")
+            # print(data)
             return data
 
     def SendData(self, input):
@@ -46,8 +46,8 @@ class ClientSocket():
         data_ = self.socket.recv(100000)
         if data_:
             data = pickle.loads(data_)
-            print("From server:")
-            print(data)
+            # print("From server:")
+            # print(data)
             return data
 
     def SendData(self, input):

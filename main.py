@@ -101,13 +101,25 @@ if __name__ == "__main__":
     
 
     while True:
-
         received_data = server.Waiting()
-        print(type(received_data))
         code = received_data[0]
         data = received_data[1]
         if str(type(data)) == "<class 'numpy.ndarray'>":
-            print(torch.tensor(data))
+            # print(torch.tensor(data))
+            model.eval()
+            outs = []
+            with torch.no_grad():
+                sum_acc=0
+                total_cnt=0
+                profit_correct=0
+                loss_correct=0
+                iterate = 0
+                for i, (data, gt) in enumerate(test_dataloader):
+                    data = data.float().cuda()
+                    out=model(data)
+                    gt = torch.tensor(gt, dtype=torch.long).to('cuda')
+                    c=torch.argmax(out,dim=1)
+                    outs += c.cpu().detach().numpy().tolist()
         
         server.SendData(['code', "buy"])
     
