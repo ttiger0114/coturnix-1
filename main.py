@@ -1,4 +1,5 @@
 import time
+import datetime
 import torch
 import torch.nn as nn
 import numpy as np
@@ -71,9 +72,9 @@ class SimpleDataset(torch.utils.data.Dataset):
         self.data = data[:,:,:5]
         self.labels = labels
         self.labels[self.labels==3]=0
-        for i in range(len(self.data)):
-          self.data[i, :,:4] = (self.data[i, :,:4]-1)*100
-          self.data[i, :,4] = self.data[i, :,4]*0.1
+        # for i in range(len(self.data)):
+        #   self.data[i, :,:4] = (self.data[i, :,:4]-1)*100
+        #   self.data[i, :,4] = self.data[i, :,4]*0.1
         
     def __getitem__(self, idx):
         return self.data[idx], self.labels[idx]
@@ -103,23 +104,30 @@ if __name__ == "__main__":
     while True:
         received_data = server.Waiting()
         code = received_data[0]
-        data = received_data[1]
-        if str(type(data)) == "<class 'numpy.ndarray'>":
+        stock_data = received_data[1]
+
+        if str(type(stock_data)) == "<class 'numpy.ndarray'>":
+            stock_labels = np.ones((stock_data.shape[0]))
+            test_dataset = SimpleDataset(stock_data,stock_labels)
+            test_dataloader = DataLoader(test_dataset, batch_size=1024, shuffle=False, drop_last=False)
             # print(torch.tensor(data))
             model.eval()
             outs = []
             with torch.no_grad():
-                sum_acc=0
-                total_cnt=0
-                profit_correct=0
-                loss_correct=0
-                iterate = 0
                 for i, (data, gt) in enumerate(test_dataloader):
-                    data = data.float().cuda()
-                    out=model(data)
-                    gt = torch.tensor(gt, dtype=torch.long).to('cuda')
+                    now = datetime.datetime.now()
+                    print("idx",i)
+                    data = data.float()
+                    src_mask=model.generate_square_subsequent_mask()
+                    out=model(data,src_mask)
+                    gt = torch.tensor(gt, dtype=torch.long)
                     c=torch.argmax(out,dim=1)
-                    outs += c.cpu().detach().numpy().tolist()
-        
-        server.SendData(['code', "buy"])
+                    outs += c.cpu().detach().numpy()
+                    print(outs)
+                    print(code)
+                    # print("time: ", datetime.datetime.now() - now )
+                    
+                    print(code[np.where(outs == 2)])
+                    ret = code[np.where(outs == 2)]
+                    server.SendData(["buy", ret])
     
