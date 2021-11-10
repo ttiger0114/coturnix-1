@@ -20,7 +20,7 @@ class ServerSocket():
 
     def Waiting(self):
        
-        data_ = self.client_socket.recv(10000)
+        data_ = self.client_socket.recv(100000)
         if data_:
             data = pickle.loads(data_)
             print("From client")
