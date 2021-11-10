@@ -140,7 +140,7 @@ class MyWindow(QMainWindow):
         ClientWaiting = threading.Thread(target = self.ClientWaiting)
         ClientWaiting.start()
 
-        self.client.SendData(np.array([1,2,3,4]))
+        # self.client.SendData(np.array([1,2,3,4]))
 
         accounts = self.GetLoginInfo("ACCNO")
         self.account = accounts.split(';')[0]
@@ -183,7 +183,7 @@ class MyWindow(QMainWindow):
         AutoUpdate.start()
 
         
-        self.client.SendData(np.array([1,2,3,4,5]))
+        # self.client.SendData(np.array([1,2,3,4,5]))
         
 
 
@@ -530,8 +530,8 @@ class MyWindow(QMainWindow):
             for i in range(len(stock_realtime_data)):
                 abs_stock_realtime_data[i] = abs(int(stock_realtime_data[i]))
             # print("abs_stock_realtime_data",code,abs_stock_realtime_data, stock_realtime_data)
-            self.UpdateDataDict(code,abs_stock_realtime_data)
 
+            self.UpdateDataDict(code,abs_stock_realtime_data)
             row_num = self.codeList.index(code)
 
             if row_num >= self.view_num:
@@ -675,10 +675,8 @@ class MyWindow(QMainWindow):
                     data = self.DataDict[key][data_len-1]
                     current_price = data[3]
 
-                    ## 길이가 1보다 클경우, 이전 종가를 현재 시가로 자동업데이트
-                    if data_len > 1:
-                        data[0] =  self.DataDict[key][data_len-2][3]
-
+                    ##이전 종가를 현재 시가로 자동업데이트
+                    data[0] = current_price
                     data[1] = current_price
                     data[2] = current_price
                     self.DataDict[key] = self.DataDict[key] + [data]
@@ -693,13 +691,16 @@ class MyWindow(QMainWindow):
             
     def UpdateDataDict(self, code, data):
         try:
-            data_len = len(self.DataDict[code])
-
             ## Recorde Initial Data ####
             if self.FirstReceiveFlag[code] == 0:
                 self.InitialData[code] = data
                 self.FirstReceiveFlag[code] = 1
             #############################
+            
+            data_len = len(self.DataDict[code])
+            previous_data = self.DataDict[code][data_len-1]
+            current_price = data[3]
+
             if data_len == 1:
                 new_data = [0,0,0,0,0]
                 new_data[0] = data[0]
@@ -718,12 +719,10 @@ class MyWindow(QMainWindow):
                 new_data[4] = data[4]   ## 거래량도 그대로
 
                 self.DataDict[code][data_len-1] = new_data
+                # print(self.DataDict[code][data_len-1])
 
             elif data_len > 1:
-                previous_data = self.DataDict[code][data_len-1]
                 new_data = [0,0,0,0,0]
-                current_price = data[3]
-
                 new_data[0] = self.DataDict[code][data_len-2][3]  # 시가는 이전에 종가
                 if previous_data[1] < current_price:
                     new_data[1] = current_price
@@ -746,6 +745,7 @@ class MyWindow(QMainWindow):
             self.sys_text_edit.appendPlainText(f"Update {code}")
             # print(datetime.datetime.now()," Update ",code)
         except:
+            print("except")
             pass
 
     def InitializeVolumeReference(self, code):
