@@ -103,6 +103,7 @@ if __name__ == "__main__":
     while True:
 
         received_data = server.Waiting()
+        print(type(received_data))
         code = received_data[0]
         data = received_data[1]
         if str(type(data)) == "<class 'numpy.ndarray'>":
