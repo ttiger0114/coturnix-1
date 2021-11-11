@@ -25,7 +25,7 @@ for data_index in data_length:
     preprocessed_y = list()
  
     for j, day in tqdm(enumerate(data), total=len(data)):
-        day = np.array(day)
+        day = np.array(day, dtype=np.float32)
         
         # divide prices by first open price
         # make cumulative data temporal
@@ -71,8 +71,8 @@ for data_index in data_length:
         if (j % (8000 * SAMPLING_FREQUENCY) == 0 and j) or j == len(data) - 1:
             data_length_dict[data_index].append(j)
 
-            preprocessed_x = np.array(preprocessed_x)
-            preprocessed_y = np.array(preprocessed_y)
+            preprocessed_x = np.array(preprocessed_x, dtype=np.float32)
+            preprocessed_y = np.array(preprocessed_y, dtype=np.float32)
 
             np.save('cleaved_data/x_{}_{}.npy'.format(data_index, j), preprocessed_x)
             np.save('cleaved_data/y_{}_{}.npy'.format(data_index, j), preprocessed_y)

@@ -82,47 +82,43 @@ def make_dataset(split_mode):
         np.save('train_test_data/indep_y_valid.npy', y_valid)
 
     else:
-        train_x = np.empty((0, 6, 8))
-        train_y = np.empty((0))
-
+        train_x = np.empty((0, 6, 8), dtype=np.float32)
+        train_y = np.empty((0), dtype=np.float32)
         # Hard Coded because of not enough memory space.
-        # for data_number in data_length[:4]:
-        #     train_x = np.empty((0, 6, 8))
-        #     for piece_number in data_length_dict[data_number]:
-        #         temp_numpy = []
-        #         temp_numpy = np.load("cleaved_data/x_{}_{}.npy".format(data_number, piece_number))
-        #         print(data_number, piece_number)
-        #         train_x = np.concatenate((train_x, temp_numpy), axis=0)
-        #     np.save('train_test_data/dep_x_train_{}.npy'.format(data_number), train_x)
-
-        for data_number in data_length[:4]:
-            train_y = np.empty((0))
+        for data_number in data_length[:3]:
+            for piece_number in data_length_dict[data_number]:
+                temp_numpy = []
+                temp_numpy = np.load("cleaved_data/x_{}_{}.npy".format(data_number, piece_number))
+                train_x = np.concatenate((train_x, temp_numpy), axis=0)
+        
+        np.save('train_test_data/dep_x_train.npy', train_x)
+        del train_x, temp_numpy
+        
+        for data_number in data_length[:3]:        
             for piece_number in data_length_dict[data_number]:
                 temp_numpy = []
                 temp_numpy = np.load("cleaved_data/y_{}_{}.npy".format(data_number, piece_number))
                 train_y = np.concatenate((train_y, temp_numpy), axis=0)
-            np.save('train_test_data/dep_y_train_{}.npy'.format(data_number), train_y)
-
-        del train_x
-        del train_y
+        np.save('train_test_data/dep_y_train.npy', train_y)
+        del train_y, temp_numpy
         
-        valid_x = np.empty((0, 6, 8))
-        valid_y = np.empty((0))
+        valid_x = np.empty((0, 6, 8), dtype=np.float32)
+        valid_y = np.empty((0), dtype=np.float32)
 
-        for data_number in data_length[4:]:
+        for data_number in data_length[3:]:
             for piece_number in data_length_dict[data_number]:
                 temp_numpy = []
                 temp_numpy = np.load("cleaved_data/x_{}_{}.npy".format(data_number, piece_number))
                 valid_x = np.concatenate((valid_x, temp_numpy), axis=0)
-        np.save('train_test_data/dep_y_valid.npy', valid_x)
+        np.save('train_test_data/dep_x_valid.npy', valid_x)
         del valid_x
 
-        for data_number in data_length[4:]:
+        for data_number in data_length[3:]:
             for piece_number in data_length_dict[data_number]:
                 temp_numpy = []
                 temp_numpy = np.load("cleaved_data/y_{}_{}.npy".format(data_number, piece_number))
                 valid_y = np.concatenate((valid_y, temp_numpy), axis=0)
-        np.save('train_test_data/dep_y_train.npy', valid_y)
+        np.save('train_test_data/dep_y_valid.npy', valid_y)
         del valid_y
 
 if __name__ == '__main__':
