@@ -105,6 +105,7 @@ if __name__ == "__main__":
         received_data = server.Waiting()
         code = received_data[0]
         stock_data = received_data[1]
+        ret = []
 
         if str(type(stock_data)) == "<class 'numpy.ndarray'>":
             stock_labels = np.ones((stock_data.shape[0]))
@@ -112,22 +113,26 @@ if __name__ == "__main__":
             test_dataloader = DataLoader(test_dataset, batch_size=1024, shuffle=False, drop_last=False)
             # print(torch.tensor(data))
             model.eval()
-            outs = []
+            # outs = []
             with torch.no_grad():
                 for i, (data, gt) in enumerate(test_dataloader):
                     now = datetime.datetime.now()
-                    print("idx",i)
+                    print("input")
                     data = data.float()
+                    print(data)
                     src_mask=model.generate_square_subsequent_mask()
                     out=model(data,src_mask)
                     gt = torch.tensor(gt, dtype=torch.long)
-                    c=torch.argmax(out,dim=1)
-                    outs += c.cpu().detach().numpy()
-                    print(outs)
-                    print(code)
+                    c = torch.argmax(out,dim=1)
+                    outs = c.clone().detach().numpy()
+                    # outs += c.cpu().detach().numpy()
                     # print("time: ", datetime.datetime.now() - now )
                     
-                    print(code[np.where(outs == 2)])
-                    ret = code[np.where(outs == 2)]
-                    server.SendData(["buy", ret])
+                    condi = np.where(outs == 1)[0]
+
+                    if len(condi) != 0:
+                        for code_idx in condi:
+                            ret.append(code[code_idx])
+                        print(ret)
+                        server.SendData(["buy", ret])
     
