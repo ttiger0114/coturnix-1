@@ -2,12 +2,12 @@ import torch
 import torch.nn as nn
 
 BN_MOMENTUM=0.1
-class 1D_CNN1(nn.Module):
+class _1D_CNN1(nn.Module):
     def __init__(self,n,p):
         super().__init__()
         self.conv1 = nn.Sequential(
-            nn.Conv2d(7, 32*n, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(32*n, momentum=BN_MOMENTUM),
+            nn.Conv1d(5, 32*n, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm1d(32*n, momentum=BN_MOMENTUM),
             nn.ReLU(inplace=True),
             nn.Dropout(p),
         )
