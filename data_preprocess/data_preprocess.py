@@ -6,7 +6,7 @@ import numpy as np
 DATA_LENGTH = 6
 LABEL_DISTANCE = 6
 DECISION_THRESHOLD = 0.0037
-LABEL_RATIO_CORRECTION = 0.0008
+LABEL_RATIO_CORRECTION = 0
 SAMPLING_FREQUENCY = 2
 
 with open('padded_data/data_length.pickle', 'rb') as f:
@@ -18,6 +18,7 @@ for length in data_length:
 
 for data_index in data_length:
     with open('./padded_data/data_{}.pickle'.format(data_index), 'rb') as f:
+        data = list()
         data = pickle.load(f)
 
     preprocessed_x = list()
@@ -56,7 +57,8 @@ for data_index in data_length:
 
                 if high_trigger == low_trigger:
                     label = 3
-                elif high_trigger > low_trigger:                   label = 0
+                elif high_trigger > low_trigger:                   
+                    label = 0
                 else:
                     label = 2
 
