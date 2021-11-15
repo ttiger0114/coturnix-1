@@ -85,9 +85,7 @@ class SimpleDataset(torch.utils.data.Dataset):
 
 
 if __name__ == "__main__":
-    #PATH = 'modelList/시초돌파_p15_l075_45.pt'
-
-    path = "ctnx_models/transformer_4_1107_3000_5features.pt"
+    path = "ctnx_models/transformer_3_1112_pricecond_zeropadding_trade18_075_5features.pt"
     model = TransformerModel(ninp=70,nhid=70,nlayers=6,nhead=7,dropout=0.0)
     
     # self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -98,7 +96,6 @@ if __name__ == "__main__":
 
     server = lb.ServerSocket()
     server.AcceptWait()
-    path = "ctnx_models/transformer_4_1107_3000_5features.pt"
     
 
     while True:
@@ -128,7 +125,7 @@ if __name__ == "__main__":
                     # outs += c.cpu().detach().numpy()
                     # print("time: ", datetime.datetime.now() - now )
                     
-                    condi = np.where(outs == 1)[0]
+                    condi = np.where(outs == 2)[0]
 
                     if len(condi) != 0:
                         for code_idx in condi:
