@@ -664,8 +664,8 @@ class MyWindow(QMainWindow):
 
     def AutoUpdateDataDict(self):
         while(True):
-            # time.sleep(60 - datetime.datetime.now().second)
-            time.sleep(2)
+            time.sleep(60 - datetime.datetime.now().second)
+            # time.sleep(2)
 
             Stacked_code = []
             Stacked_Stockdata = []
