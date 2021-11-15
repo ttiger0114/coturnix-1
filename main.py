@@ -85,7 +85,7 @@ class SimpleDataset(torch.utils.data.Dataset):
 
 
 if __name__ == "__main__":
-    path = "ctnx_models/transformer_1_1111_pricecond_zeropadding_5features.pt"
+    path = "ctnx_models/transformer_3_1112_pricecond_zeropadding_trade18_075_5features.pt"
     model = TransformerModel(ninp=70,nhid=70,nlayers=6,nhead=7,dropout=0.0)
     
     # self.device = 'cuda' if torch.cuda.is_available() else 'cpu'

@@ -24,7 +24,7 @@ class MyWindow(QMainWindow):
         self.account = None
         self.available = 0
         self.amount = None
-        self.profit_rate = 0.5
+        self.profit_rate = 0.75
 
         self.previous_day_hold = False
         self.previous_day_quantity = False
@@ -190,10 +190,7 @@ class MyWindow(QMainWindow):
         def run(self):
             while(True):
                 time.sleep(10)
-                print("잔액",window.available)
                 window.request_opw00001()
-                print("잔액갱신",window.available)
-                print()
 
     # def AutoOPW00001(self):
     #     while(True):
@@ -213,28 +210,6 @@ class MyWindow(QMainWindow):
 
     def _handler_tr_data(self, screen_no, rqname, trcode, record, next):
         if rqname == "주식기본정보":
-            # now = datetime.datetime.now()
-            # today = now.strftime("%Y%m%d")
-            # code = self.GetCommData(trcode, rqname, 0, "종목코드")
-            # 일자 = self.GetCommData(trcode, rqname, 0, "일자")
-
-            # # 장시작 후 TR 요청하는 경우 0번째 row에 당일 일봉 데이터가 존재함
-            # if 일자 != today:
-            #     고가 = self.GetCommData(trcode, rqname, 0, "고가")
-            #     저가 = self.GetCommData(trcode, rqname, 0, "저가")
-            # elif 일자 == "":
-            #     return
-            # else:
-            #     일자 = self.GetCommData(trcode, rqname, 1, "일자")
-            #     고가 = self.GetCommData(trcode, rqname, 1, "고가")
-            #     저가 = self.GetCommData(trcode, rqname, 1, "저가")
-            
-            # self.range = 0
-            # if 고가 != '' or 저가 != '':
-            #     self.range = int(고가) - int(저가)       
-    
-            # info = f"종목코드: {code} 일자: {일자} 고가: {고가} 저가: {저가} 전일변동: {self.range}"
-            # self.plain_text_edit.appendPlainText(info)
             code = self.GetCommData(trcode, rqname, 0, "종목코드")
             name = self.GetCommData(trcode, rqname, 0, "종목명")
             start_price = self.GetCommData(trcode, rqname, 0, "시가")
@@ -274,7 +249,6 @@ class MyWindow(QMainWindow):
                 
                 self.tableWidget.item(row_num,5).setBackground(QColor(235,255,255))
 
-                # self.codeNum = self.codeNum + 1
         elif rqname == "분봉데이터":
             code = self.GetCommData(trcode, rqname, 0, "종목코드")
             amount = []
