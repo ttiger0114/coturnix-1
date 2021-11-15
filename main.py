@@ -128,7 +128,7 @@ if __name__ == "__main__":
                     # outs += c.cpu().detach().numpy()
                     # print("time: ", datetime.datetime.now() - now )
                     
-                    condi = np.where(outs == 1)[0]
+                    condi = np.where(outs == 2)[0]
 
                     if len(condi) != 0:
                         for code_idx in condi:
