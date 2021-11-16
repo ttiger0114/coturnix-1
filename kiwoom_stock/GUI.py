@@ -564,33 +564,6 @@ class MyWindow(QMainWindow):
 
             self.tableWidget.item(row_num,5).setBackground(QColor(235,255,255))
 
-            # # 현재가 
-            # 현재가 = self.GetCommRealData(code, 10)
-            # 현재가 = abs(int(현재가))          # +100, -100
-            # 체결시간 = self.GetCommRealData(code, 20)
-
-            # # 목표가 계산
-            # # TR 요청을 통한 전일 range가 계산되었고 아직 당일 목표가가 계산되지 않았다면 
-            # if self.range is not None and self.target is None:
-            #     시가 = self.GetCommRealData(code, 16)
-            #     시가 = abs(int(시가))          # +100, -100
-            #     self.target = int(시가 + (self.range * 0.5))      
-            #     self.plain_text_edit.appendPlainText(f"목표가 계산됨: {self.target}")
-
-            # # 매수시도
-            # # 당일 매수하지 않았고
-            # # TR 요청과 Real을 통한 목표가가 설정되었고 
-            # # TR 요청을 통해 잔고조회가 되었고 
-            # # 현재가가 목표가가 이상이면
-            # if self.hold is None and self.target is not None and self.amount is not None and 현재가 > self.target:
-            #     self.hold = True 
-            #     quantity = int(self.amount / 현재가)
-                # self.SendOrder("매수", "8000", self.account, 1, "229200", quantity, 0, "03", "")
-                # self.plain_text_edit.appendPlainText(f"시장가 매수 진행 수량: {quantity}")
-
-            # # 로깅
-            # self.plain_text_edit.appendPlainText(f"시간: {체결시간} 목표가: {self.target} 현재가: {현재가} 보유여부: {self.hold}")
-
     
     def DisConnectRealData(self, screen_no):
         self.ocx.dynamicCall("DisConnectRealData(QString)", screen_no)
@@ -605,6 +578,9 @@ class MyWindow(QMainWindow):
             name =  self.GetChejanData('302')
             trading_number = self.GetChejanData('911') # 체결 수량
             trading_price = self.GetChejanData('901') # 주문 가격
+            
+            order_number = self.GetChejanData('9203') # 주문 번호
+            self.TradingInfo[code][3] = order_number
 
             ## 거래 정보 갱신
             if trading_state == '체결':
@@ -620,8 +596,10 @@ class MyWindow(QMainWindow):
             code = code[1:7]
             name =  self.GetChejanData('302')
             have_stock = self.GetChejanData('930') # 보유 수량
+            not_traded_amount = self.GetChejanData('902') # 미체결 수량
             self.TradingInfo[code][1] = int(have_stock)
-            print("보유수량",have_stock)
+            self.TradingInfo[code][2] = int(not_traded_amount)
+            print("보유수량",have_stock, "미체결 수량",not_traded_amount)
 
 
 
@@ -660,12 +638,12 @@ class MyWindow(QMainWindow):
             temp = [0,0,0,0,0]
             self.DataDict[code] = [temp]
             self.FirstReceiveFlag[code] = 0
-            self.TradingInfo[code] = [0,0] # price, amount
+            self.TradingInfo[code] = [0, 0, 0 , ''] # price, amount, not signed amount, order number
 
     def AutoUpdateDataDict(self):
         while(True):
-            time.sleep(60 - datetime.datetime.now().second)
-            # time.sleep(2)
+            # time.sleep(60 - datetime.datetime.now().second)
+            time.sleep(2)
 
             Stacked_code = []
             Stacked_Stockdata = []
@@ -685,8 +663,8 @@ class MyWindow(QMainWindow):
                     for i in range(len_limit-1):
                         preprocessed_data[i,4] = origin_data[i+1,4] - origin_data[i,4]
 
-                    # preprocessed_data[0:len_limit-1,0:4] = ((preprocessed_data[0:len_limit-1,0:4]/self.InitialData[key][0])-1)*100
-                    # preprocessed_data[0:len_limit-1,4] = (preprocessed_data[0:len_limit-1,4]/self.VolumeReference[key])*0.1
+                    preprocessed_data[0:len_limit-1,0:4] = ((preprocessed_data[0:len_limit-1,0:4]/self.InitialData[key][0])-1)*100
+                    preprocessed_data[0:len_limit-1,4] = (preprocessed_data[0:len_limit-1,4]/self.VolumeReference[key])*0.1
 
                     # self.SendData(key,preprocessed_data)
                     Stacked_code.append(key)
@@ -776,7 +754,7 @@ class MyWindow(QMainWindow):
         self.VolumeReference[code] = volume
 
     #### Auto Sell ##########################
-    def AutoSell(self, waitingtime, code, quantity, price):
+    def AutoSell(self, waitingtime, code, quantity, price, order_num):
         time.sleep(waitingtime) ## 판매대기 후 매수 물량 매도
         if self.TradingInfo[code][1] >= quantity:
             self.SendOrder("매도", "8001", self.account, 2, code , quantity, 0, "03", "")
@@ -787,6 +765,11 @@ class MyWindow(QMainWindow):
         now = datetime.datetime.now()
         current_time = now.strftime("%H:%M:%S")
         self.plain_text_edit.appendPlainText(f"[{current_time}] Time Expired {code} {price} {quantity} ")
+
+        if self.TradingInfo[code][2] >= 1: ## 미체결 물량 존재시
+            self.SendOrder("매수취소", "8002", self.account, 3, code , self.TradingInfo[code][2], 0, "03", order_num)
+            print("매수취소",code, self.TradingInfo[code][2])
+
         print(f"[{current_time}] Time Expired {code} {price} {quantity} ")
 
 
@@ -798,18 +781,18 @@ class MyWindow(QMainWindow):
             if received_data[0] == 'buy':
                 codelist = received_data[1]
                 code_num = len(codelist)
-                available = self.available/code_num/10
+                available = self.available/code_num
 
                 for i, code in enumerate(codelist):
                     time.sleep(0.3)
                     ## 주문 요청
                     data_len = len(self.DataDict[code])
                     price = self.DataDict[code][data_len-2][3] 
-                    quantity = int(available / price /10 )
+                    quantity = int(available / price )
                     if quantity >= 1 and self.TradingInfo[code][1] == 0:
                         self.SendOrder("매수", "8000", self.account, 1, code , quantity, price, "00", "") ## 지정가매수
                         # AutoSell(360, code, quantity, price)
-                        self.AutoSell(10, code, quantity, price)
+                        self.AutoSell(10, code, quantity, price, self.TradingInfo[code][3])
                         # now = datetime.datetime.now()
                         # current_time = now.strftime("%H:%M:%S")
                         # self.plain_text_edit.appendPlainText(f"[{current_time}] {code} {price} {quantity}")
