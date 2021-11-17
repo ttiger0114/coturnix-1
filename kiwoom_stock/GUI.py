@@ -661,6 +661,7 @@ class MyWindow(QMainWindow):
                 self.plain_text_edit.appendPlainText(f"[{current_time}] {name} {code} {trading_state} {trading_price} {trading_number}")
 
                 print(f"[{current_time}] {name} {code}{trading_state} {trading_sort} {trading_price} {trading_number}")
+
                 if trading_type == '1': ## 매도시 예수금 증가
                     self.available = int(self.available + trading_price0 * trading_number * (1-0.00245) )
                     self.account_money_text.setText(f" 주문가능금액: {self.available}")
@@ -722,63 +723,63 @@ class MyWindow(QMainWindow):
             self.FirstReceiveFlag[code] = 0
             self.TradingInfo[code] = [0, 0, 0 , ''] # price, amount, not signed amount, order number
 
-    class AutoUpdate(QThread):
-        def __init__(self, window, parent = None):
-            super().__init__(parent)
-            self.window = window
-        def run(self):
-            while(True):
-                time.sleep(60 - datetime.datetime.now().second)
-                # time.sleep(2)
+    # class AutoUpdate(QThread):
+    #     def __init__(self, window, parent = None):
+    #         super().__init__(parent)
+    #         self.window = window
+    #     def run(self):
+    #         while(True):
+    #             time.sleep(60 - datetime.datetime.now().second)
+    #             # time.sleep(2)
 
-                Stacked_code = []
-                Stacked_Stockdata = []
+    #             Stacked_code = []
+    #             Stacked_Stockdata = []
 
-                for key, _ in self.window.DataDict.items():
-                    # print("[Autoupdate]",datetime.datetime.now(), key)
-                    data_len = len(self.window.DataDict[key])
+    #             for key, _ in self.window.DataDict.items():
+    #                 # print("[Autoupdate]",datetime.datetime.now(), key)
+    #                 data_len = len(self.window.DataDict[key])
                     
-                    ### Preprocessed Data before sending ########
-                    # self.SendData(key,self.DataDict[key][data_len-1])
-                    len_limit = 7
-                    if data_len >= len_limit:
-                        origin_data = np.array(self.window.DataDict[key][data_len-len_limit:data_len]).astype(float)
-                        preprocessed_data = np.array(self.window.DataDict[key][data_len-len_limit+1:data_len]).astype(float)
+    #                 ### Preprocessed Data before sending ########
+    #                 # self.SendData(key,self.DataDict[key][data_len-1])
+    #                 len_limit = 7
+    #                 if data_len >= len_limit:
+    #                     origin_data = np.array(self.window.DataDict[key][data_len-len_limit:data_len]).astype(float)
+    #                     preprocessed_data = np.array(self.window.DataDict[key][data_len-len_limit+1:data_len]).astype(float)
 
-                        ### Make volume amount to volume difference
-                        for i in range(len_limit-1):
-                            preprocessed_data[i,4] = origin_data[i+1,4] - origin_data[i,4]
+    #                     ### Make volume amount to volume difference
+    #                     for i in range(len_limit-1):
+    #                         preprocessed_data[i,4] = origin_data[i+1,4] - origin_data[i,4]
 
-                        preprocessed_data[0:len_limit-1,0:4] = ((preprocessed_data[0:len_limit-1,0:4]/self.window.InitialData[key][0])-1)*100
-                        preprocessed_data[0:len_limit-1,4] = (preprocessed_data[0:len_limit-1,4]/self.window.VolumeReference[key])*0.1
+    #                     preprocessed_data[0:len_limit-1,0:4] = ((preprocessed_data[0:len_limit-1,0:4]/self.window.InitialData[key][0])-1)*100
+    #                     preprocessed_data[0:len_limit-1,4] = (preprocessed_data[0:len_limit-1,4]/self.window.VolumeReference[key])*0.1
 
-                        # self.SendData(key,preprocessed_data)
-                        Stacked_code.append(key)
-                        Stacked_Stockdata.append(preprocessed_data)
-                    ######################################################
+    #                     # self.SendData(key,preprocessed_data)
+    #                     Stacked_code.append(key)
+    #                     Stacked_Stockdata.append(preprocessed_data)
+    #                 ######################################################
 
-                    ## Auto Update #########################
-                    if self.window.DataDict[key][data_len-1] != [0,0,0,0,0]:
-                        data = copy.deepcopy(self.window.DataDict[key][data_len-1])
-                        current_price = data[3]
+    #                 ## Auto Update #########################
+    #                 if self.window.DataDict[key][data_len-1] != [0,0,0,0,0]:
+    #                     data = copy.deepcopy(self.window.DataDict[key][data_len-1])
+    #                     current_price = data[3]
 
-                        ##이전 종가를 현재 시가로 자동업데이트
-                        data[0] = current_price
-                        data[1] = current_price
-                        data[2] = current_price
-                        self.window.DataDict[key] = self.window.DataDict[key] + [data]
-                        del data
-                    ################################
+    #                     ##이전 종가를 현재 시가로 자동업데이트
+    #                     data[0] = current_price
+    #                     data[1] = current_price
+    #                     data[2] = current_price
+    #                     self.window.DataDict[key] = self.window.DataDict[key] + [data]
+    #                     del data
+    #                 ################################
 
-                ### Send Packet to AI model ########
-                if Stacked_code != []:
-                    # self.SendData(Stacked_code, np.array(Stacked_Stockdata))
-                    self.window.client.SendData([Stacked_code, np.array(Stacked_Stockdata)])
+    #             ### Send Packet to AI model ########
+    #             if Stacked_code != []:
+    #                 # self.SendData(Stacked_code, np.array(Stacked_Stockdata))
+    #                 self.window.client.SendData([Stacked_code, np.array(Stacked_Stockdata)])
             
     def AutoUpdateDataDict(self):
         while(True):
-            # time.sleep(60 - datetime.datetime.now().second)
-            time.sleep(2)
+            time.sleep(60 - datetime.datetime.now().second)
+            # time.sleep(2)
 
             Stacked_code = []
             Stacked_Stockdata = []
