@@ -104,7 +104,7 @@ class MyWindow(QMainWindow):
         self.client = lb.ClientSocket()
 
 
-        self.view_num = 10
+        self.view_num = 30
 
         self.login_event_loop = QEventLoop()
         self.CommConnect()          # 로그인이 될 때까지 대기
@@ -130,6 +130,7 @@ class MyWindow(QMainWindow):
         # condition_num = int(input("조건문 번호: ")) 
         condition_num = 0
         self.sendCondition("0156",self.condition[condition_num],condition_num,1)
+        # self.sendCondition("0156",self.condition[condition_num],condition_num,0)
 
         #### 조건문 결과 출력
         try:
@@ -143,6 +144,9 @@ class MyWindow(QMainWindow):
         ClientWaiting = threading.Thread(target = self.ClientWaiting)
         ClientWaiting.start()
 
+        # ClientWaiting = self.Client(self, parent = None)
+        # ClientWaiting.start()
+
         # self.client.SendData(np.array([1,2,3,4]))
 
         accounts = self.GetLoginInfo("ACCNO")
@@ -151,52 +155,76 @@ class MyWindow(QMainWindow):
 
         self.ConditionMethod()  
 
-        self.DisConnectRealData('1')
-        self.DisConnectRealData('2')
+        #기존 구독 해지
+        for screen_num in range(3000,3101):
+            self.DisConnectRealData(str(screen_num))
         
         # 사전 초기화
         self.InitializeDataDict(self.codeList)
         for code in self.codeList:
             self.InitializeVolumeReference(code)
 
-        # self.SetRealReg('2', str(self.codeList[-1]), "20", 0)
         # TR 요청 
 
         for i,code in enumerate(tqdm(self.codeList[0:self.view_num])):
             time.sleep(0.3)
             self.request_opt10001(code)
-            self.subscribe_stock_conclusion('2', code)        
+
+        if len(self.codeList) > 100:
+            subscribe_len = 100
+        else:
+            subscribe_len = len(self.codeList)
+
+        for i,code in enumerate(tqdm(self.codeList[1:subscribe_len])):
+            screen_num = str(3000 + i)
+            self.subscribe_stock_conclusion('screen_num', code)     
 
         # for i in range(20):
         #     temp_color = random.randrange(1,100)
         #     self.tableWidget.item(i,1).setBackground(QColor(255,255-temp_color,255-temp_color))
         
         self.request_opw00001()
-        THREAD_OPW00001 = self.AutoOPW00001(self)
-        THREAD_OPW00001.start()
+        # THREAD_OPW00001 = self.AutoOPW00001(self)
+        # THREAD_OPW00001.start()
+
         # THREAD_OPW00001 = threading.Thread(target = self.AutoOPW00001) #예수금 자동조회
+        # THREAD_OPW00001.start()
         self.request_opw00004()
 
         ## 주식 사전 기록
         AutoUpdate = threading.Thread(target = self.AutoUpdateDataDict)
         AutoUpdate.start()
-
+        
+        # AutoUpdateThread = self.AutoUpdate(self)
+        # AutoUpdateThread.start()
         # 주식체결 (실시간)
-        self.subscribe_market_time('1')
+        # self.subscribe_market_time('1')
     
-    class AutoOPW00001(QThread):
-        def __init__(self, window, parent = None):
-            super().__init__(parent)
-        def run(self):
-            while(True):
-                time.sleep(10)
-                window.request_opw00001()
+    # class AutoOPW00001(QThread):
+    #     def __init__(self, window, parent = None):
+    #         super().__init__(parent)
+    #         self.window = window
+    #     def run(self):
+    #         while(True):
+    #             time.sleep(10)
+    #             # print("AutoOPW00001")
+    #             self.window.request_opw00001()
 
-    # def AutoOPW00001(self):
-    #     while(True):
-    #         time.sleep(10)
-    #         print(autoaccount)
-    #         self.request_opw00001()
+    def AutoOPW00001(self):
+        self.lock = threading.Lock()
+        while(True):
+            self.lock.acquire()
+            time.sleep(10)
+
+            print("예수금조회 시도")
+            try:
+                self.request_opw00001()
+                print("예수금조회 완")
+            except:
+                print("예수금조회 실패\n")
+                pass
+                
+            self.lock.release()
 
 
     def GetLoginInfo(self, tag):
@@ -205,7 +233,10 @@ class MyWindow(QMainWindow):
 
     def _handler_login(self, err_code):
         if err_code == 0:
-            self.sys_text_edit.appendPlainText("[LOGIN SUCCESS]")
+            now = datetime.datetime.now()
+            current_time = now.strftime("%H:%M:%S")
+            self.sys_text_edit.appendPlainText(f"[{current_time}] [LOGIN SUCCESS]")
+            print(f"[{current_time}] [LOGIN SUCCESS]")
         self.login_event_loop.exit()
 
     def _handler_tr_data(self, screen_no, rqname, trcode, record, next):
@@ -265,6 +296,7 @@ class MyWindow(QMainWindow):
                 df.to_csv(path, index = False) 
 
         elif rqname == "예수금조회":
+            print("-- 예수금 조회중")
             available = self.GetCommData(trcode, rqname, 0, "주문가능금액")
             available = int(available)
             self.available = available
@@ -279,6 +311,11 @@ class MyWindow(QMainWindow):
                 if 종목코드[1:] == "229200":
                     self.previous_day_hold = True
                     self.previous_day_quantity = int(보유수량)
+        
+        try:
+            self.tr_event_loop.exit()
+        except AttributeError:
+            pass
 
     def GetRepeatCnt(self, trcode, rqname):
         ret = self.ocx.dynamicCall("GetRepeatCnt(QString, QString)", trcode, rqname)
@@ -406,11 +443,31 @@ class MyWindow(QMainWindow):
         :param conditionIndex: string - 조건식 인덱스(여기서만 인덱스가 string 타입으로 전달됨)
         """
 
-        # print("종목코드: {}, 종목명: {}".format(code, self.get_master_code_name(code)))
+        print("종목코드: {}".format(code))
         
-        # print("이벤트: ", "종목편입" if event == "I" else "종목이탈")
-        
-        # bot.sendMessage(chat_id=chat_id, text="종목코드: {} , {}".format(code, event))
+        print("이벤트: ", "종목편입" if event == "I" else "종목이탈")
+        if event == "I":
+            if len(self.codeList) < 100:
+                self.codeList.append(code)
+
+                ## initialize new data dictionary component
+                temp = [0,0,0,0,0]
+                self.DataDict[code] = [temp]
+                self.FirstReceiveFlag[code] = 0
+                self.TradingInfo[code] = [0, 0, 0 , ''] # price, amount, not signed amount, order number
+                self.InitializeVolumeReference(code) ## 편입 종목 전날 거래량 초기화
+                
+                ## subsribe
+                screen_num = str(3000 + self.codeList.index(code))
+                self.subscribe_stock_conclusion(screen_num, code)
+        else:
+            screen_num = str(3000 + self.codeList.index(code))
+            self.DisConnectRealData(screen_num)   
+            del self.DataDict[code]
+            del self.FirstReceiveFlag[code]
+            del self.TradingInfo[code] # price, amount, not signed amount, order number
+            self.codeList.remove(code)
+
 
     def getConditionLoad(self):
         self.sys_text_edit.appendPlainText("[GetConditionLoad]")
@@ -518,8 +575,11 @@ class MyWindow(QMainWindow):
                 abs_stock_realtime_data[i] = abs(int(stock_realtime_data[i]))
             # print("abs_stock_realtime_data",code,abs_stock_realtime_data, stock_realtime_data)
 
-            self.UpdateDataDict(code,abs_stock_realtime_data)
-            row_num = self.codeList.index(code)
+            try:
+                self.UpdateDataDict(code,abs_stock_realtime_data)
+                row_num = self.codeList.index(code)
+            except:
+                return
 
             ## 주식 매도
             if self.TradingInfo[code][1] > 0:  ## 매수한 주식 존재시
@@ -537,7 +597,10 @@ class MyWindow(QMainWindow):
 
             if row_num >= self.view_num:
                 return
-
+            
+            self.tableWidget.setItem(row_num,0,QTableWidgetItem(f"{code}"))
+            name = self.GetMasterCodeName(code)
+            self.tableWidget.setItem(row_num,1,QTableWidgetItem(f"{name}"))
             self.tableWidget.setItem(row_num,2,QTableWidgetItem(f"{abs(int(a7))}"))
             self.tableWidget.setItem(row_num,3,QTableWidgetItem(f"{abs(int(a8))}"))
             self.tableWidget.setItem(row_num,4,QTableWidgetItem(f"{abs(int(a9))}"))
@@ -564,56 +627,47 @@ class MyWindow(QMainWindow):
 
             self.tableWidget.item(row_num,5).setBackground(QColor(235,255,255))
 
-            # # 현재가 
-            # 현재가 = self.GetCommRealData(code, 10)
-            # 현재가 = abs(int(현재가))          # +100, -100
-            # 체결시간 = self.GetCommRealData(code, 20)
-
-            # # 목표가 계산
-            # # TR 요청을 통한 전일 range가 계산되었고 아직 당일 목표가가 계산되지 않았다면 
-            # if self.range is not None and self.target is None:
-            #     시가 = self.GetCommRealData(code, 16)
-            #     시가 = abs(int(시가))          # +100, -100
-            #     self.target = int(시가 + (self.range * 0.5))      
-            #     self.plain_text_edit.appendPlainText(f"목표가 계산됨: {self.target}")
-
-            # # 매수시도
-            # # 당일 매수하지 않았고
-            # # TR 요청과 Real을 통한 목표가가 설정되었고 
-            # # TR 요청을 통해 잔고조회가 되었고 
-            # # 현재가가 목표가가 이상이면
-            # if self.hold is None and self.target is not None and self.amount is not None and 현재가 > self.target:
-            #     self.hold = True 
-            #     quantity = int(self.amount / 현재가)
-                # self.SendOrder("매수", "8000", self.account, 1, "229200", quantity, 0, "03", "")
-                # self.plain_text_edit.appendPlainText(f"시장가 매수 진행 수량: {quantity}")
-
-            # # 로깅
-            # self.plain_text_edit.appendPlainText(f"시간: {체결시간} 목표가: {self.target} 현재가: {현재가} 보유여부: {self.hold}")
-
     
     def DisConnectRealData(self, screen_no):
         self.ocx.dynamicCall("DisConnectRealData(QString)", screen_no)
-        print("구독 해지 완료")
+        # print("구독 해지 완료")
 
     def _handler_chejan_data(self, gubun, item_cnt, fid_list):
         if gubun == '0':  # 주식 매수 체결 완료
             trading_state = self.GetChejanData('913') ## 주문 상태
             trading_sort = self.GetChejanData('906') ## 매매 구분
+            trading_type = self.GetChejanData('907') ## 매도수 구분
+
             code =  self.GetChejanData('9001')
             code = code[1:7]
             name =  self.GetChejanData('302')
-            trading_number = self.GetChejanData('911') # 체결 수량
             trading_price = self.GetChejanData('901') # 주문 가격
+            
+            order_number = self.GetChejanData('9203') # 주문 번호
+            self.TradingInfo[code][3] = order_number
+            
+            not_traded_amount = self.GetChejanData('902') # 미체결 수량
+            self.TradingInfo[code][2] = int(not_traded_amount)
+            print(name," 미체결 수량",not_traded_amount)
 
             ## 거래 정보 갱신
             if trading_state == '체결':
+                trading_price0 = int(self.GetChejanData('910')) ## 체결가
+                trading_number = int(self.GetChejanData('911')) # 체결 수량
+
                 self.TradingInfo[code][0] = trading_price
                 now = datetime.datetime.now()
                 current_time = now.strftime("%H:%M:%S")
                 self.plain_text_edit.appendPlainText(f"[{current_time}] {name} {code} {trading_state} {trading_price} {trading_number}")
-                # self.TradingInfo[code][1] = self.TradingInfo[code][1] + int(trading_number)
+
                 print(f"[{current_time}] {name} {code}{trading_state} {trading_sort} {trading_price} {trading_number}")
+
+                if trading_type == '1': ## 매도시 예수금 증가
+                    self.available = int(self.available + trading_price0 * trading_number * (1-0.00245) )
+                    self.account_money_text.setText(f" 주문가능금액: {self.available}")
+                elif  trading_type == '2': ## 매수시 예수금 감소
+                    self.available = int(self.available - trading_price0 * trading_number * (1+0.00015) )
+                    self.account_money_text.setText(f" 주문가능금액: {self.available}")
 
         elif gubun == '1':      # 잔고통보
             code =  self.GetChejanData('9001')
@@ -640,11 +694,18 @@ class MyWindow(QMainWindow):
     def CommRqData(self, rqname, trcode, next, screen_no):
         self.ocx.dynamicCall("CommRqData(QString, QString, int, QString)", 
                               rqname, trcode, next, screen_no)
+        self.tr_event_loop = QEventLoop()
+        self.tr_event_loop.exec_()
+        
 
     def GetCommData(self, trcode, rqname, index, item):
         data = self.ocx.dynamicCall("GetCommData(QString, QString, int, QString)", 
                                      trcode, rqname, index, item)
         return data.strip()
+
+    def GetMasterCodeName(self, code):
+        name = self.ocx.dynamicCall("GetMasterCodeName(QString)", code)
+        return name
 
     def SendOrder(self, rqname, screen, accno, order_type, code, quantity, price, hoga, order_no):
         self.ocx.dynamicCall("SendOrder(QString, QString, QString, int, QString, int, int, QString, QString)",
@@ -660,8 +721,61 @@ class MyWindow(QMainWindow):
             temp = [0,0,0,0,0]
             self.DataDict[code] = [temp]
             self.FirstReceiveFlag[code] = 0
-            self.TradingInfo[code] = [0,0] # price, amount
+            self.TradingInfo[code] = [0, 0, 0 , ''] # price, amount, not signed amount, order number
 
+    # class AutoUpdate(QThread):
+    #     def __init__(self, window, parent = None):
+    #         super().__init__(parent)
+    #         self.window = window
+    #     def run(self):
+    #         while(True):
+    #             time.sleep(60 - datetime.datetime.now().second)
+    #             # time.sleep(2)
+
+    #             Stacked_code = []
+    #             Stacked_Stockdata = []
+
+    #             for key, _ in self.window.DataDict.items():
+    #                 # print("[Autoupdate]",datetime.datetime.now(), key)
+    #                 data_len = len(self.window.DataDict[key])
+                    
+    #                 ### Preprocessed Data before sending ########
+    #                 # self.SendData(key,self.DataDict[key][data_len-1])
+    #                 len_limit = 7
+    #                 if data_len >= len_limit:
+    #                     origin_data = np.array(self.window.DataDict[key][data_len-len_limit:data_len]).astype(float)
+    #                     preprocessed_data = np.array(self.window.DataDict[key][data_len-len_limit+1:data_len]).astype(float)
+
+    #                     ### Make volume amount to volume difference
+    #                     for i in range(len_limit-1):
+    #                         preprocessed_data[i,4] = origin_data[i+1,4] - origin_data[i,4]
+
+    #                     preprocessed_data[0:len_limit-1,0:4] = ((preprocessed_data[0:len_limit-1,0:4]/self.window.InitialData[key][0])-1)*100
+    #                     preprocessed_data[0:len_limit-1,4] = (preprocessed_data[0:len_limit-1,4]/self.window.VolumeReference[key])*0.1
+
+    #                     # self.SendData(key,preprocessed_data)
+    #                     Stacked_code.append(key)
+    #                     Stacked_Stockdata.append(preprocessed_data)
+    #                 ######################################################
+
+    #                 ## Auto Update #########################
+    #                 if self.window.DataDict[key][data_len-1] != [0,0,0,0,0]:
+    #                     data = copy.deepcopy(self.window.DataDict[key][data_len-1])
+    #                     current_price = data[3]
+
+    #                     ##이전 종가를 현재 시가로 자동업데이트
+    #                     data[0] = current_price
+    #                     data[1] = current_price
+    #                     data[2] = current_price
+    #                     self.window.DataDict[key] = self.window.DataDict[key] + [data]
+    #                     del data
+    #                 ################################
+
+    #             ### Send Packet to AI model ########
+    #             if Stacked_code != []:
+    #                 # self.SendData(Stacked_code, np.array(Stacked_Stockdata))
+    #                 self.window.client.SendData([Stacked_code, np.array(Stacked_Stockdata)])
+            
     def AutoUpdateDataDict(self):
         while(True):
             time.sleep(60 - datetime.datetime.now().second)
@@ -685,8 +799,8 @@ class MyWindow(QMainWindow):
                     for i in range(len_limit-1):
                         preprocessed_data[i,4] = origin_data[i+1,4] - origin_data[i,4]
 
-                    # preprocessed_data[0:len_limit-1,0:4] = ((preprocessed_data[0:len_limit-1,0:4]/self.InitialData[key][0])-1)*100
-                    # preprocessed_data[0:len_limit-1,4] = (preprocessed_data[0:len_limit-1,4]/self.VolumeReference[key])*0.1
+                    preprocessed_data[0:len_limit-1,0:4] = ((preprocessed_data[0:len_limit-1,0:4]/self.InitialData[key][0])-1)*100
+                    preprocessed_data[0:len_limit-1,4] = (preprocessed_data[0:len_limit-1,4]/self.VolumeReference[key])*0.1
 
                     # self.SendData(key,preprocessed_data)
                     Stacked_code.append(key)
@@ -703,6 +817,9 @@ class MyWindow(QMainWindow):
                     data[1] = current_price
                     data[2] = current_price
                     self.DataDict[key] = self.DataDict[key] + [data]
+
+                    if data_len >= 8:
+                        self.DataDict[key].pop(0)
                 ################################
 
             ### Send Packet to AI model ########
@@ -733,6 +850,8 @@ class MyWindow(QMainWindow):
                 else:
                     new_data[1] = previous_data[1]
 
+                if previous_data[2] == 0:
+                    previous_data[2] = 9999999
                 if previous_data[2] > current_price:
                     new_data[2] = current_price
                 else:
@@ -742,6 +861,7 @@ class MyWindow(QMainWindow):
                 new_data[4] = data[4]   ## 거래량도 그대로
 
                 self.DataDict[code][data_len-1] = new_data
+                del new_data
                 # print(self.DataDict[code][data_len-1])
 
             elif data_len > 1:
@@ -761,10 +881,12 @@ class MyWindow(QMainWindow):
                 new_data[4] = data[4]   ## 거래량도 그대로
 
                 self.DataDict[code][data_len-1] = new_data
+                del new_data
             
             now = datetime.datetime.now()
             current_time = now.strftime("%H:%M:%S")
             self.sys_text_edit.appendPlainText(f"[{current_time}] Update {code}")
+            # print(f"[{current_time}] Update {code}")
         except:
             print("except")
             pass
@@ -776,22 +898,55 @@ class MyWindow(QMainWindow):
         self.VolumeReference[code] = volume
 
     #### Auto Sell ##########################
-    def AutoSell(self, waitingtime, code, quantity, price):
+    def AutoSell(self, waitingtime, code, quantity, price, order_num):
         time.sleep(waitingtime) ## 판매대기 후 매수 물량 매도
+
+        if self.TradingInfo[code][2] >= 1: ## 미체결 물량 존재시
+            time.sleep(0.4)
+            self.SendOrder("매수취소", "8002", self.account, 3, code , self.TradingInfo[code][2], 0, "03", order_num)
+            print("매수취소",order_num, code, self.TradingInfo[code][2])
+
         if self.TradingInfo[code][1] >= quantity:
             self.SendOrder("매도", "8001", self.account, 2, code , quantity, 0, "03", "")
-            print("AutoSell Ouccr")
         elif self.TradingInfo[code][1] > 0:
             self.SendOrder("매도", "8001", self.account, 2, code , self.TradingInfo[code][1], 0, "03", "")
 
         now = datetime.datetime.now()
         current_time = now.strftime("%H:%M:%S")
         self.plain_text_edit.appendPlainText(f"[{current_time}] Time Expired {code} {price} {quantity} ")
+
+        
+
         print(f"[{current_time}] Time Expired {code} {price} {quantity} ")
 
 
     #############################################
     ### Send Packet to AI model ########
+
+    # class Client(QThread):
+    #     def __init__(self, window, parent = None):
+    #         super().__init__(parent)
+    #         self.window = window
+    #     def run(self): 
+    #         while(True):
+    #             received_data = self.window.client.Waiting()
+    #             if received_data[0] == 'buy':
+    #                 codelist = received_data[1]
+    #                 code_num = len(codelist)
+    #                 available = self.window.available/code_num/10
+
+    #                 for i, code in enumerate(codelist):
+    #                     time.sleep(0.3)
+    #                     ## 주문 요청
+    #                     data_len = len(self.window.DataDict[code])
+    #                     price = self.window.DataDict[code][data_len-2][3] 
+    #                     quantity = int(available / price )
+    #                     if quantity >= 1 and self.window.TradingInfo[code][1] == 0:
+    #                         # price = int(price * 0.9)
+    #                         self.window.SendOrder("매수", "8000", self.window.account, 1, code , quantity, price, "00", "") ## 지정가매수
+    #                         self.window.AutoSell(720, code, quantity, price, self.window.TradingInfo[code][3])
+    #                         # self.AutoSell(3, code, quantity, price, self.TradingInfo[code][3])
+
     def ClientWaiting(self):
         while(True):
             received_data = self.client.Waiting()
@@ -803,16 +958,18 @@ class MyWindow(QMainWindow):
                 for i, code in enumerate(codelist):
                     time.sleep(0.3)
                     ## 주문 요청
-                    data_len = len(self.DataDict[code])
+                    try:
+                        data_len = len(self.DataDict[code])
+                    except:
+                        continue
+
                     price = self.DataDict[code][data_len-2][3] 
-                    quantity = int(available / price /10 )
+                    quantity = int(available / price )
                     if quantity >= 1 and self.TradingInfo[code][1] == 0:
+                        # price = int(price * 0.9)
                         self.SendOrder("매수", "8000", self.account, 1, code , quantity, price, "00", "") ## 지정가매수
-                        # AutoSell(360, code, quantity, price)
-                        self.AutoSell(10, code, quantity, price)
-                        # now = datetime.datetime.now()
-                        # current_time = now.strftime("%H:%M:%S")
-                        # self.plain_text_edit.appendPlainText(f"[{current_time}] {code} {price} {quantity}")
+                        # self.AutoSell(720, code, quantity, price, self.TradingInfo[code][3])
+                        self.AutoSell(3, code, quantity, price, self.TradingInfo[code][3])
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
