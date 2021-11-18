@@ -117,6 +117,7 @@ if __name__ == "__main__":
                     print("input")
                     data = data.float()
                     print(data)
+                    print(data.shape)
                     src_mask=model.generate_square_subsequent_mask()
                     out=model(data,src_mask)
                     gt = torch.tensor(gt, dtype=torch.long)
