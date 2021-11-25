@@ -4,7 +4,6 @@ import torch
 import torch.nn as nn
 import numpy as np
 import tqdm
-
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from kiwoom_stock import LoopBackSocket as lb
@@ -83,7 +82,6 @@ class SimpleDataset(torch.utils.data.Dataset):
         return len(self.data)
 
 
-
 if __name__ == "__main__":
     path = "ctnx_models/transformer_3_1112_pricecond_zeropadding_trade18_075_5features.pt"
     model = TransformerModel(ninp=70,nhid=70,nlayers=6,nhead=7,dropout=0.0)
@@ -96,41 +94,52 @@ if __name__ == "__main__":
 
     server = lb.ServerSocket()
     server.AcceptWait()
-    
 
     while True:
         received_data = server.Waiting()
         code = received_data[0]
         stock_data = received_data[1]
         ret = []
+        
+        now = datetime.datetime.now()
+        if now.hour <= 9 and now.minute <= 50 :
+        # if now.hour >= 9:
+            if str(type(stock_data)) == "<class 'numpy.ndarray'>":
+                stock_labels = np.ones((stock_data.shape[0]))
+                test_dataset = SimpleDataset(stock_data,stock_labels)
+                test_dataloader = DataLoader(test_dataset, batch_size=1024, shuffle=False, drop_last=False)
+                # print(torch.tensor(data))
+                model.eval()
+                # outs = []
+                with torch.no_grad():
+                    for i, (data, gt) in enumerate(test_dataloader):
+                        now = datetime.datetime.now()
+                        print("input")
+                        data = data.float()
+                        # print(data)
+                        print(data.shape)
+                        src_mask=model.generate_square_subsequent_mask()
+                        out=model(data,src_mask)
+                        gt = torch.tensor(gt, dtype=torch.long)
 
-        if str(type(stock_data)) == "<class 'numpy.ndarray'>":
-            stock_labels = np.ones((stock_data.shape[0]))
-            test_dataset = SimpleDataset(stock_data,stock_labels)
-            test_dataloader = DataLoader(test_dataset, batch_size=1024, shuffle=False, drop_last=False)
-            # print(torch.tensor(data))
-            model.eval()
-            # outs = []
-            with torch.no_grad():
-                for i, (data, gt) in enumerate(test_dataloader):
-                    now = datetime.datetime.now()
-                    print("input")
-                    data = data.float()
-                    print(data)
-                    print(data.shape)
-                    src_mask=model.generate_square_subsequent_mask()
-                    out=model(data,src_mask)
-                    gt = torch.tensor(gt, dtype=torch.long)
-                    c = torch.argmax(out,dim=1)
-                    outs = c.clone().detach().numpy()
-                    # outs += c.cpu().detach().numpy()
-                    # print("time: ", datetime.datetime.now() - now )
-                    
-                    condi = np.where(outs == 2)[0]
+                        confidence = torch.softmax(out, dim = 1)
+                        confidence = confidence.clone().detach().numpy()
 
-                    if len(condi) != 0:
-                        for code_idx in condi:
-                            ret.append(code[code_idx])
-                        print(ret)
-                        server.SendData(["buy", ret])
+                        c = torch.argmax(out,dim=1)
+                        outs = c.clone().detach().numpy()
+                        
+                        condi = np.where(outs == 2)[0]
+                        if len(condi) != 0:
+                            for code_idx in condi:
+                                ret.append(code[code_idx])
+                            print(ret)
+                            print()
+                            server.SendData(["buy", ret])
+                        
+                        server.SendData(["confidence", code, confidence])
+                        
+        else:
+            print("Time Out")
+
+        
     

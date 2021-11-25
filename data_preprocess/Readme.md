@@ -1,6 +1,6 @@
 # Data Preprocess
 
-Data Preprocessing code is for colab pro environment (25+ GB RAM)
+Data Preprocess code is for colab pro environment (25+ GB RAM)
 
 ### Directory Structure
 

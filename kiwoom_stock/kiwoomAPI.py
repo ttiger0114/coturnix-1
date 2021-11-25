@@ -5,6 +5,8 @@ from PyQt5.QtCore import *
 import time
 import sqlite3
 import numpy as np
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+import matplotlib.pyplot as plt
 import AI_server as server
 
 TR_REQ_TIME_INTERVAL = 0.2
