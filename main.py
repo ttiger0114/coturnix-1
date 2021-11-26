@@ -102,8 +102,8 @@ if __name__ == "__main__":
         ret = []
         
         now = datetime.datetime.now()
-        if now.hour <= 9 and now.minute <= 50 :
-        # if now.hour >= 9:
+        # if now.hour <= 9 and now.minute <= 50 :
+        if now.hour >= 9:
             if str(type(stock_data)) == "<class 'numpy.ndarray'>":
                 stock_labels = np.ones((stock_data.shape[0]))
                 test_dataset = SimpleDataset(stock_data,stock_labels)

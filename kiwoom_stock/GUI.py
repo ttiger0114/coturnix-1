@@ -301,41 +301,43 @@ class MyWindow(QMainWindow):
             amount = self.GetCommData(trcode, rqname, 0, "거래량")
 
             if code != '':
-                row_num = self.codeList.index(code)
+                try:
+                    row_num = self.codeList.index(code)
+                    self.tableWidget.setItem(row_num,0,QTableWidgetItem(f"{code}"))
+                    self.tableWidget.setItem(row_num,1,QTableWidgetItem(f"{name}"))
+                    self.tableWidget.setItem(row_num,2,QTableWidgetItem(f"{abs(int(start_price))}"))
+                    self.tableWidget.setItem(row_num,3,QTableWidgetItem(f"{abs(int(high_price))}"))
+                    self.tableWidget.setItem(row_num,4,QTableWidgetItem(f"{abs(int(low_price))}"))
+                    self.tableWidget.setItem(row_num,5,QTableWidgetItem(f"{abs(int(cur_price))}"))
+                    self.tableWidget.setItem(row_num,6,QTableWidgetItem(f"{amount}"))
 
-                self.tableWidget.setItem(row_num,0,QTableWidgetItem(f"{code}"))
-                self.tableWidget.setItem(row_num,1,QTableWidgetItem(f"{name}"))
-                self.tableWidget.setItem(row_num,2,QTableWidgetItem(f"{abs(int(start_price))}"))
-                self.tableWidget.setItem(row_num,3,QTableWidgetItem(f"{abs(int(high_price))}"))
-                self.tableWidget.setItem(row_num,4,QTableWidgetItem(f"{abs(int(low_price))}"))
-                self.tableWidget.setItem(row_num,5,QTableWidgetItem(f"{abs(int(cur_price))}"))
-                self.tableWidget.setItem(row_num,6,QTableWidgetItem(f"{amount}"))
-
-                
-                if int(start_price) > 0:
-                    self.tableWidget.item(row_num,2).setForeground(QBrush(Qt.red))
-                elif int(start_price) < 0:
-                    self.tableWidget.item(row_num,2).setForeground(QBrush(Qt.blue))
-                if int(high_price) > 0:
-                    self.tableWidget.item(row_num,3).setForeground(QBrush(Qt.red))
-                elif int(high_price) < 0:
-                    self.tableWidget.item(row_num,3).setForeground(QBrush(Qt.blue))
-                if int(low_price) > 0:
-                    self.tableWidget.item(row_num,4).setForeground(QBrush(Qt.red))
-                elif int(low_price) < 0:
-                    self.tableWidget.item(row_num,4).setForeground(QBrush(Qt.blue))
-                if int(cur_price) > 0:
-                    self.tableWidget.item(row_num,5).setForeground(QBrush(Qt.red))
-                elif int(cur_price) < 0:
-                    self.tableWidget.item(row_num,5).setForeground(QBrush(Qt.blue))
-                
-                self.tableWidget.item(row_num,0).setBackground(QColor(255,255,255))
-                self.tableWidget.item(row_num,1).setBackground(QColor(255,255,255))
-                self.tableWidget.item(row_num,2).setBackground(QColor(255,255,255))
-                self.tableWidget.item(row_num,3).setBackground(QColor(255,255,255))
-                self.tableWidget.item(row_num,4).setBackground(QColor(255,255,255))
-                self.tableWidget.item(row_num,5).setBackground(QColor(235,255,255))
-                self.tableWidget.item(row_num,6).setBackground(QColor(255,255,255))
+                    
+                    if int(start_price) > 0:
+                        self.tableWidget.item(row_num,2).setForeground(QBrush(Qt.red))
+                    elif int(start_price) < 0:
+                        self.tableWidget.item(row_num,2).setForeground(QBrush(Qt.blue))
+                    if int(high_price) > 0:
+                        self.tableWidget.item(row_num,3).setForeground(QBrush(Qt.red))
+                    elif int(high_price) < 0:
+                        self.tableWidget.item(row_num,3).setForeground(QBrush(Qt.blue))
+                    if int(low_price) > 0:
+                        self.tableWidget.item(row_num,4).setForeground(QBrush(Qt.red))
+                    elif int(low_price) < 0:
+                        self.tableWidget.item(row_num,4).setForeground(QBrush(Qt.blue))
+                    if int(cur_price) > 0:
+                        self.tableWidget.item(row_num,5).setForeground(QBrush(Qt.red))
+                    elif int(cur_price) < 0:
+                        self.tableWidget.item(row_num,5).setForeground(QBrush(Qt.blue))
+                    
+                    self.tableWidget.item(row_num,0).setBackground(QColor(255,255,255))
+                    self.tableWidget.item(row_num,1).setBackground(QColor(255,255,255))
+                    self.tableWidget.item(row_num,2).setBackground(QColor(255,255,255))
+                    self.tableWidget.item(row_num,3).setBackground(QColor(255,255,255))
+                    self.tableWidget.item(row_num,4).setBackground(QColor(255,255,255))
+                    self.tableWidget.item(row_num,5).setBackground(QColor(235,255,255))
+                    self.tableWidget.item(row_num,6).setBackground(QColor(255,255,255))
+                except:
+                    pass
 
         elif rqname == "분봉데이터":
             code = self.GetCommData(trcode, rqname, 0, "종목코드")
@@ -525,9 +527,9 @@ class MyWindow(QMainWindow):
             # screen_num = str(3000 + self.codeList.index(code))
             screen_num = self.kosdaq.index(code)
             self.DisConnectRealData(screen_num)   
-            del self.DataDict[code]
-            del self.FirstReceiveFlag[code]
-            del self.TradingInfo[code] # price, amount, not signed amount, order number
+            # del self.DataDict[code]
+            # del self.FirstReceiveFlag[code]
+            # del self.TradingInfo[code] # price, amount, not signed amount, order number
             self.codeList.remove(code)
             
             name = self.GetMasterCodeName(code)
@@ -1028,16 +1030,34 @@ class MyWindow(QMainWindow):
             current_time = now.strftime("%H:%M:%S")
             name = self.GetMasterCodeName(code)
             name = name.replace(" ", "")
-
-            self.plain_text_edit.appendPlainText(f"[{current_time}] [매도취소] {name} {code}\n 취소수량:{self.TradingInfo[code][2]}\n")
-            self.SendOrder("매도취소", "8002", self.account, 3, code , self.TradingInfo[code][2], 0, "03", order_num)
-            self.TradingInfo[code][2] = 0
             
+            if self.TradingType[code] == 1:    
+                self.plain_text_edit.appendPlainText(f"[{current_time}] [매도취소] {name} {code}\n 취소수량:{self.TradingInfo[code][2]}\n")
+                self.SendOrder("매도취소", "8002", self.account, 3, code , self.TradingInfo[code][2], 0, "03", order_num)
+                self.TradingInfo[code][2] = 0
+                
 
-            print("시간만료", "8001", self.account, 2, code , self.TradingInfo[code][1], 0, "03", "")
-            cancel_mount = self.TradingInfo[code][1]
-            self.SendOrder("매도", "8001", self.account, 2, code , self.TradingInfo[code][1], 0, "03", "")
-            self.plain_text_edit.appendPlainText(f"[{current_time}] [Time Expired] {name} {code}\n 취소수량:{cancel_mount}\n")
+                print("시간만료", "8001", self.account, 2, code , self.TradingInfo[code][1], 0, "03", "")
+                cancel_mount = self.TradingInfo[code][1]
+                self.SendOrder("매도", "8001", self.account, 2, code , self.TradingInfo[code][1], 0, "03", "")
+                self.plain_text_edit.appendPlainText(f"[{current_time}] [Time Expired] {name} {code}\n 취소수량:{cancel_mount}\n")
+            else:              
+                price = self.DataDict[code][data_len-2][3]
+                quantity = int(self.TradingInfo[code][2] )
+
+                self.available = int(self.available + int(price) * int(quantity) * (1+0.0015) )  ## 주문시 예수금 차감
+                self.account_money_text.setText(f" 주문가능금액: {self.available}")
+
+                self.plain_text_edit.appendPlainText(f"[{current_time}] [매수취소] {name} {code}\n 취소수량:{self.TradingInfo[code][2]}\n")
+                self.SendOrder("매수취소", "8002", self.account, 3, code , self.TradingInfo[code][2], 0, "03", order_num)
+                self.TradingInfo[code][2] = 0
+                
+
+                print("시간만료", "8001", self.account, 2, code , self.TradingInfo[code][1], 0, "03", "")
+                cancel_mount = self.TradingInfo[code][1]
+                self.SendOrder("매도", "8001", self.account, 2, code , self.TradingInfo[code][1], 0, "03", "")
+                self.plain_text_edit.appendPlainText(f"[{current_time}] [Time Expired] {name} {code}\n 취소수량:{cancel_mount}\n")
+
 
         
 
@@ -1079,7 +1099,10 @@ class MyWindow(QMainWindow):
                 confidence = received_data[2]
                 max_confi = np.argmax(confidence, axis = 1)
                 for i, code in enumerate(codelist):
-                    row_num = self.codeList.index(code)
+                    try:
+                        row_num = self.codeList.index(code)
+                    except:
+                        row_num = 1000
                     if row_num < self.view_num:
                         temp_color = 0
                         if max_confi[i] == 1:
